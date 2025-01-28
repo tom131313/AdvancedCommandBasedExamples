@@ -1,7 +1,6 @@
 package frc.robot;
 
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.WrapperCommand;
 import edu.wpi.first.wpilibj2.command.button.InternalButton;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
@@ -23,7 +22,7 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 Usage:
 
 good example with best practice of using command factories
-Command test = TriggeredDisjointSequence.sequence(
+Command test = TriggeredDisjointSequenceGroup.run(
     mySubsystem.test1(),
     mySubsystem.test2(),
     mySubsystem.test3(),
@@ -32,7 +31,7 @@ Command test = TriggeredDisjointSequence.sequence(
 test.schedule();
 
 bad example of the pitfall of not using command factories
-Command test = TriggeredDisjointSequence.sequence(
+Command test = TriggeredDisjointSequenceGroup.run(
     test1,
     test2,
     test3,
@@ -56,17 +55,18 @@ test.schedule();
  * <p>The difference with regular group compositions is this sequential group does not require at
  * all time all of the subsystems its components require.
  */
-public final class TriggeredDisjointGroup extends WrapperCommand {
+public final class TriggeredDisjointSequenceGroup extends WrapperCommand {
   private final InternalButton m_trigger;
 
-  private TriggeredDisjointGroup(Command command) {
+  private TriggeredDisjointSequenceGroup(Command command) {
     super(command);
     m_trigger = new InternalButton();
   }
 
   @Override
   public void initialize() {
-    m_trigger.setPressed(false); // reset in case this sequence is reused (maybe be sloppy use
+    m_trigger.setPressed(false);
+    // reset in case this sequence is reused (maybe by sloppy use
     // of not restarting robot code and just changing modes and
     // returning to a previous mode but it's supported)
     m_command.initialize();
@@ -99,7 +99,7 @@ public final class TriggeredDisjointGroup extends WrapperCommand {
    * @return the first command that should be scheduled to run and the remainder are automatically
    *     triggered upon completion of each previous command.
    */
-  public static Command sequence(Command... commands) {
+  public static Command prepare(Command... commands) {
     if (commands.length == 0) {
       return null;
     }
@@ -121,10 +121,10 @@ public final class TriggeredDisjointGroup extends WrapperCommand {
       boolean atFirstCommand = i == firstCommandIndex;
       boolean atLastCommand = i == lastCommandIndex;
 
-      TriggeredDisjointGroup augmented = null;
+      TriggeredDisjointSequenceGroup augmented = null;
 
       if (!atLastCommand) {
-        augmented = new TriggeredDisjointGroup(command); // augment it with a trigger
+        augmented = new TriggeredDisjointSequenceGroup(command); // augment it with a trigger
       }
 
       if (atFirstCommand) {
@@ -147,16 +147,5 @@ public final class TriggeredDisjointGroup extends WrapperCommand {
     }
 
     return first;
-  }
-
-  public static Command parallel(Command... commands) {
-    // possible implementation:
-    // change the "m_trigger" to an array
-    // for the "sequence" only need one trigger [0]
-    // for the parallel make new ones as many triggers as there are commands [commands.length]
-    // in "initialize" set all the internal triggers to false
-    // in "end" set them all to true
-    System.err.println("TriggeredDisjointGroup.parallel(commands) not implemented");
-    return Commands.print("TriggeredDisjointGroup.parallel(commands) not implemented");
   }
 }

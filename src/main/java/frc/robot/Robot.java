@@ -99,13 +99,16 @@
  * Use of public command factories in subsystems.
  * Overloading method parameter types.
  * No commands with the word Command in the name.
- * No triggers with the word Trigger in the name.
+ * (Almost) No triggers with the word Trigger in the name.
  * Supplier of dynamic LED pattern.
  * Static LED pattern.
  * Restrict Subsystem Default Command to none until set once at any time and then unchangeable.
  * Controller subsystem scheduled by a command to reach a Goal.
  * Default commands can either run or not run within a sequential group depending on how the group is defined using Proxy.
  * Commands run in sequence by triggering successive commands.
+ *  [option set within code to invoke this technique]
+ * Commands run in parallel by triggering successive commands after the first command completes.
+ *  [test case run by exiting autonomous mode]
  * Use of Time.
  * Use of sequential and parallel composed command groups to perform tasks.
  * Use of a reusable Moore-Like FSM structure of current state, trigger, new state transitions.
@@ -193,9 +196,12 @@
  */
 package frc.robot;
 
+import static edu.wpi.first.wpilibj2.command.Commands.waitSeconds;
+
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.Commands;
 
 public class Robot extends TimedRobot {
   private RobotContainer m_robotContainer = new RobotContainer();
@@ -241,6 +247,19 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousExit() {
     m_autonomousSignal.cancel(); // cancel in case still running
+
+    // testing the TriggeredDisjointParallelGroup
+    TriggeredDisjointParallelGroup.prepare(
+        Commands.print("immediately printed"),
+        waitSeconds(1).andThen(Commands.print("at 1 seconds")),
+        waitSeconds(2).andThen(Commands.print("at 2 seconds")),
+        waitSeconds(3).andThen(Commands.print("at 3 seconds")),
+        waitSeconds(4).andThen(Commands.print("at 4 seconds")),    
+        waitSeconds(5).andThen(Commands.print("at 5 seconds")),
+        waitSeconds(6).andThen(Commands.print("at 6 seconds")),
+        waitSeconds(7).andThen(Commands.print("at 7 seconds")),
+        waitSeconds(8).andThen(Commands.print("at 8 seconds"))    
+      ).schedule();
   }
 
   @Override

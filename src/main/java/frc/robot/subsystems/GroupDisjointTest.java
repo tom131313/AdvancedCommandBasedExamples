@@ -61,7 +61,7 @@ import static edu.wpi.first.wpilibj2.command.Commands.race;
 import static edu.wpi.first.wpilibj2.command.Commands.sequence;
 import static edu.wpi.first.wpilibj2.command.Commands.waitSeconds;
 
-import frc.robot.TriggeredDisjointGroup;
+import frc.robot.TriggeredDisjointSequenceGroup;
 
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -336,7 +336,7 @@ public class GroupDisjointTest extends SubsystemBase {
     // Requirements on the triggered sequence are largely irrelevant since they would only apply to
     // the first command and not the entire sequence. No requirements created in this example.
     if (useTriggeredJob) {
-      return TriggeredDisjointGroup.sequence(allTests)
+      return TriggeredDisjointSequenceGroup.prepare(allTests)
             .beforeStarting(print("** starting triggered disjoint sequence tests"))
             .finallyDo(interrupted->System.out.println(
                 "** the end of triggered disjoint sequence tests interrupted flag = "
