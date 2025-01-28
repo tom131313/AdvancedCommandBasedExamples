@@ -55,10 +55,10 @@ test.schedule();
  * <p>The difference with regular group compositions is this sequential group does not require at
  * all time all of the subsystems its components require.
  */
-public final class TriggeredDisjointSequence extends WrapperCommand {
+public final class TriggeredDisjointGroup extends WrapperCommand {
   private final InternalButton m_trigger;
 
-  private TriggeredDisjointSequence(Command command) {
+  private TriggeredDisjointGroup(Command command) {
     super(command);
     m_trigger = new InternalButton();
   }
@@ -120,10 +120,10 @@ public final class TriggeredDisjointSequence extends WrapperCommand {
       boolean atFirstCommand = i == firstCommandIndex;
       boolean atLastCommand = i == lastCommandIndex;
 
-      TriggeredDisjointSequence augmented = null;
+      TriggeredDisjointGroup augmented = null;
 
       if (!atLastCommand) {
-        augmented = new TriggeredDisjointSequence(command); // augment it with a trigger
+        augmented = new TriggeredDisjointGroup(command); // augment it with a trigger
       }
 
       if (atFirstCommand) {
