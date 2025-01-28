@@ -1,6 +1,7 @@
 package frc.robot;
 
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.WrapperCommand;
 import edu.wpi.first.wpilibj2.command.button.InternalButton;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
@@ -95,8 +96,8 @@ public final class TriggeredDisjointGroup extends WrapperCommand {
    * <p>Schedule the first command and all the rest trigger the successors.
    *
    * @param commands - list of commands to run sequentially
-   * @return the first command to run by scheduling it and the remainder are automatically
-   *     triggered.
+   * @return the first command that should be scheduled to run and the remainder are automatically
+   *     triggered upon completion of each previous command.
    */
   public static Command sequence(Command... commands) {
     if (commands.length == 0) {
@@ -146,5 +147,16 @@ public final class TriggeredDisjointGroup extends WrapperCommand {
     }
 
     return first;
+  }
+
+  public static Command parallel(Command... commands) {
+    // possible implementation:
+    // change the "m_trigger" to an array
+    // for the "sequence" only need one trigger [0]
+    // for the parallel make new ones as many triggers as there are commands [commands.length]
+    // in "initialize" set all the internal triggers to false
+    // in "end" set them all to true
+    System.err.println("TriggeredDisjointGroup.parallel(commands) not implemented");
+    return Commands.print("TriggeredDisjointGroup.parallel(commands) not implemented");
   }
 }
