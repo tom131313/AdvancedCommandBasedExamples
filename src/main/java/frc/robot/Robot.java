@@ -81,7 +81,7 @@
  * There are user-selectable options to run the various examples. The default is to run all of them.
  * 
  * There are user-selectable options to run various logging protocols. The default is to create the
- * DataLog which also has its own SmartdashBoard/ShuffleBoard entries. Other options are to log to
+ * DataLog which also has its own SmartDashboard/ShuffleBoard entries. Other options are to log to
  * the Console and to create ShuffleBoardLog event markers.
  * 
  * All commands are interruptible. Some button presses are debounced.
