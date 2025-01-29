@@ -249,16 +249,14 @@ public class Robot extends TimedRobot {
     m_autonomousSignal.cancel(); // cancel in case still running
 
     // testing the TriggeredDisjointParallelGroup
-    TriggeredDisjointParallelGroup.prepare(
+    new TriggeredDisjointParallelGroup(true,
         Commands.print("immediately printed"),
-        waitSeconds(1).andThen(Commands.print("at 1 seconds")),
-        waitSeconds(2).andThen(Commands.print("at 2 seconds")),
-        waitSeconds(3).andThen(Commands.print("at 3 seconds")),
-        waitSeconds(4).andThen(Commands.print("at 4 seconds")),    
-        waitSeconds(5).andThen(Commands.print("at 5 seconds")),
-        waitSeconds(6).andThen(Commands.print("at 6 seconds")),
-        waitSeconds(7).andThen(Commands.print("at 7 seconds")),
-        waitSeconds(8).andThen(Commands.print("at 8 seconds"))    
+        waitSeconds(6).andThen(Commands.print("at 6 of 6 seconds")),
+        waitSeconds(5).andThen(Commands.print("at 5 of 6 seconds")),
+        waitSeconds(4).andThen(Commands.print("at 4 of 6 seconds")),
+        waitSeconds(1).andThen(Commands.print("at 1 of 6 seconds")),    
+        waitSeconds(2).andThen(Commands.print("at 2 of 6 seconds")),
+        waitSeconds(3).andThen(Commands.print("at 3 of 6 seconds"))   
       ).schedule();
   }
 
