@@ -14,19 +14,21 @@ import edu.wpi.first.wpilibj2.command.button.InternalButton;
  * 
  * Somewhat similar to using "proxies" but uses "triggers"
  * 
- * Inspired by ChiefDelphi poster @bovlb
-
+ * Inspired by ChiefDelphi poster ATsignbovlb
+<pre>
 Usage:
-
-    new TriggeredDisjointParallelGroup(
-        Commands.print("immediately printed"),
+    new TriggeredDisjointParallelGroup(true,
+        Commands.print("immediately printed and waiting 4 seconds")
+          .andThen(waitSeconds(4.))
+          .andThen(print("ending - start next job in 1 second")),
         waitSeconds(6).andThen(Commands.print("at 6 of 6 seconds")),
         waitSeconds(5).andThen(Commands.print("at 5 of 6 seconds")),
         waitSeconds(4).andThen(Commands.print("at 4 of 6 seconds")),
         waitSeconds(1).andThen(Commands.print("at 1 of 6 seconds")),    
         waitSeconds(2).andThen(Commands.print("at 2 of 6 seconds")),
-        waitSeconds(3).andThen(Commands.print("at 3 of 6 seconds"))
+        waitSeconds(3).andThen(Commands.print("at 3 of 6 seconds"))   
       ).schedule();
+</pre>
 */
 
 public final class TriggeredDisjointParallelGroup extends WrapperCommand {
@@ -35,14 +37,14 @@ public final class TriggeredDisjointParallelGroup extends WrapperCommand {
   private final boolean continueOnInterrupt;
 
   /**
-   * When the first command in the list ends all the rest of the commands are triggered to run automatically.
+   * When the first command in the list ends, all the rest of the commands run together immediately afterward.
    *
    * <p>The first command is added to an individual composition group (WrapperCommand) and thus is
    * restricted but the requirements of each component command are not required for the entire group
    * process since each wrapped command is run individually by being triggered from the previous
    * command.
    *
-   * <p>Schedule the first command and upon completion all the rest trigger to run automatically .
+   * <p>Schedule the first command; upon completion all the rest are automatically triggered to run immediately afterward.
    * @param continueOnInterrupt - true is subsequent commands are triggered even if primary command is interrupted;
    *                              false is commands do not run if primary command is interrupted
    * @param commands - list of commands to run

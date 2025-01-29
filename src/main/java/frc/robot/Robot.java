@@ -71,9 +71,14 @@
  *  Disjoint Sequential Group Demo console output initiated by entering teleop enable mode.
  *  Show that subsystem default command doesn't run within a group command unless the command with
  *  the subsystem requirement is disjointed from the group by using a Proxy structure or separated
- *  commands structure.
+ *  commands structure. Optionally in code the disjoint can be by triggers
+ *  (TriggeredDisjointSequenceGroup).
+ * 
+ *  TriggeredDisjointParallelGroup demo is somewhat similar to the TriggeredDisjointSequenceGroup
+ *  and is activated by entering test mode.
+ * 
  *
- * There are user-selectable options to run the various examples. The defualt is to run all of them.
+ * There are user-selectable options to run the various examples. The default is to run all of them.
  * 
  * There are user-selectable options to run various logging protocols. The default is to create the
  * DataLog which also has its own SmartdashBoard/ShuffleBoard entries. Other options are to log to
@@ -108,7 +113,7 @@
  * Commands run in sequence by triggering successive commands.
  *  [option set within code to invoke this technique]
  * Commands run in parallel by triggering successive commands after the first command completes.
- *  [test case run by exiting autonomous mode]
+ *  [test case run by entering test mode]
  * Use of Time.
  * Use of sequential and parallel composed command groups to perform tasks.
  * Use of a reusable Moore-Like FSM structure of current state, trigger, new state transitions.
@@ -196,12 +201,9 @@
  */
 package frc.robot;
 
-import static edu.wpi.first.wpilibj2.command.Commands.waitSeconds;
-
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import edu.wpi.first.wpilibj2.command.Commands;
 
 public class Robot extends TimedRobot {
   private RobotContainer m_robotContainer = new RobotContainer();
@@ -247,17 +249,6 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousExit() {
     m_autonomousSignal.cancel(); // cancel in case still running
-
-    // testing the TriggeredDisjointParallelGroup
-    new TriggeredDisjointParallelGroup(true,
-        Commands.print("immediately printed"),
-        waitSeconds(6).andThen(Commands.print("at 6 of 6 seconds")),
-        waitSeconds(5).andThen(Commands.print("at 5 of 6 seconds")),
-        waitSeconds(4).andThen(Commands.print("at 4 of 6 seconds")),
-        waitSeconds(1).andThen(Commands.print("at 1 of 6 seconds")),    
-        waitSeconds(2).andThen(Commands.print("at 2 of 6 seconds")),
-        waitSeconds(3).andThen(Commands.print("at 3 of 6 seconds"))   
-      ).schedule();
   }
 
   @Override
@@ -276,7 +267,9 @@ public class Robot extends TimedRobot {
   public void teleopExit() {}
 
   @Override
-  public void testInit() {}
+  public void testInit() {
+    CommandsTriggers.getDisjointedParallelTest().schedule();
+  }
 
   @Override
   public void testPeriodic() {}

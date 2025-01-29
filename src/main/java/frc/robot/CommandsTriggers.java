@@ -1,16 +1,13 @@
 package frc.robot;
 
-import static edu.wpi.first.wpilibj2.command.Commands.parallel;
-import static edu.wpi.first.wpilibj2.command.Commands.runOnce;
-import static edu.wpi.first.units.Units.Seconds;
 import static edu.wpi.first.units.Units.Milliseconds;
+import static edu.wpi.first.units.Units.Seconds;
+import static edu.wpi.first.wpilibj2.command.Commands.parallel;
+import static edu.wpi.first.wpilibj2.command.Commands.print;
+import static edu.wpi.first.wpilibj2.command.Commands.runOnce;
+import static edu.wpi.first.wpilibj2.command.Commands.waitSeconds;
 
-import frc.robot.subsystems.AchieveHueGoal;
-import frc.robot.subsystems.GroupDisjointTest;
-import frc.robot.subsystems.HistoryFSM;
-import frc.robot.subsystems.Intake;
-import frc.robot.subsystems.RobotSignals;
-import frc.robot.subsystems.RobotSignals.LEDPatternSupplier;
+import java.util.Optional;
 
 import edu.wpi.first.math.filter.Debouncer.DebounceType;
 import edu.wpi.first.wpilibj.Alert;
@@ -20,15 +17,21 @@ import edu.wpi.first.wpilibj.LEDPattern;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-
-import java.util.Optional;
+import frc.robot.subsystems.AchieveHueGoal;
+import frc.robot.subsystems.GroupDisjointSequenceTest;
+import frc.robot.subsystems.HistoryFSM;
+import frc.robot.subsystems.Intake;
+import frc.robot.subsystems.RobotSignals;
+import frc.robot.subsystems.RobotSignals.LEDPatternSupplier;
 
 public abstract class CommandsTriggers {
   private static CommandXboxController       m_operatorController;
   private static RobotSignals                m_robotSignals; // container and creator of all the LEDView subsystems
   private static Optional<AchieveHueGoal>    m_achieveHueGoal;
-  private static Optional<GroupDisjointTest> m_groupDisjointTest;
+  private static Optional<GroupDisjointSequenceTest> m_groupDisjointSequenceTest;
+  private static Optional<Boolean>           m_groupDisjointParallelTest;
   private static Optional<HistoryFSM>        m_historyFSM;
   private static Optional<Intake>            m_intake;
   private static Optional<Boolean>           m_UseAutonomousSignal;
@@ -44,7 +47,8 @@ public abstract class CommandsTriggers {
     m_operatorController = robotContainer.getM_operatorController();
     m_robotSignals = robotContainer.getM_robotSignals();
     m_achieveHueGoal = robotContainer.getM_achieveHueGoal();
-    m_groupDisjointTest = robotContainer.getM_groupDisjointTest();
+    m_groupDisjointSequenceTest = robotContainer.getM_groupDisjointSequenceTest();
+    m_groupDisjointParallelTest = robotContainer.getM_groupDisjointParallelTest();
     m_historyFSM = robotContainer.getM_historyFSM();
     m_intake = robotContainer.getM_intake();
     m_UseAutonomousSignal = robotContainer.getM_autonomousSignal();
@@ -81,13 +85,42 @@ public abstract class CommandsTriggers {
    */
   @SuppressWarnings("resource")
   public static Command getDisjointedSequenceTest() {
-    if(m_groupDisjointTest.isPresent())
+    if(m_groupDisjointSequenceTest.isPresent())
     {
-      return m_groupDisjointTest.get().m_disjointedSequenceTest;
+      return m_groupDisjointSequenceTest.get().m_disjointedSequenceTest;
     }
     else
     {
-      return runOnce(()-> new Alert("Group Disjointed Test not selected", AlertType.kWarning).set(true));
+      return runOnce(()-> new Alert("Group Disjointed Sequence Test not selected", AlertType.kWarning).set(true));
+    }
+  }
+
+  /**
+   * Get disjointed parallel test from its creator for use by Robot - passing the reference up
+   * 
+   * @return Command to be scheduled to run disjointed parallel test
+   */
+  @SuppressWarnings("resource")
+  public static Command getDisjointedParallelTest() {
+    if(m_groupDisjointParallelTest.isPresent())
+    {
+      return
+        // testing the TriggeredDisjointParallelGroup
+        new TriggeredDisjointParallelGroup(true,
+            Commands.print("immediately printed and waiting 4 seconds")
+              .andThen(waitSeconds(4.))
+              .andThen(print("ending - start next job in 1 second")),
+            waitSeconds(6).andThen(Commands.print("at 6 of 6 seconds")),
+            waitSeconds(5).andThen(Commands.print("at 5 of 6 seconds")),
+            waitSeconds(4).andThen(Commands.print("at 4 of 6 seconds")),
+            waitSeconds(1).andThen(Commands.print("at 1 of 6 seconds")),    
+            waitSeconds(2).andThen(Commands.print("at 2 of 6 seconds")),
+            waitSeconds(3).andThen(Commands.print("at 3 of 6 seconds"))   
+          );      
+    }
+    else
+    {
+      return runOnce(()-> new Alert("Group Disjointed Parallel Test not selected", AlertType.kWarning).set(true));
     }
   }
 

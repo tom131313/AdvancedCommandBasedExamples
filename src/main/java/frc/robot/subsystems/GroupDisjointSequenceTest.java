@@ -71,7 +71,7 @@ import edu.wpi.first.wpilibj2.command.ParallelDeadlineGroup;
 import edu.wpi.first.wpilibj2.command.ParallelRaceGroup;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
-public class GroupDisjointTest extends SubsystemBase {
+public class GroupDisjointSequenceTest extends SubsystemBase {
   //FIXME option to select run tests as Triggered jobs (true) or run as Commands.sequence (false)
   private final boolean m_useTriggeredJob = false;
 
@@ -89,7 +89,7 @@ public class GroupDisjointTest extends SubsystemBase {
    * 
    * <p>Could create and return test on demand but this way can save some time when demanded.
    */
-  public GroupDisjointTest() {
+  public GroupDisjointSequenceTest() {
     m_disjointedSequenceTest = configureTestJob(m_useTriggeredJob);
   }
 

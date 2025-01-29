@@ -7,7 +7,7 @@ package frc.robot;
  */
 
 import frc.robot.subsystems.AchieveHueGoal;
-import frc.robot.subsystems.GroupDisjointTest;
+import frc.robot.subsystems.GroupDisjointSequenceTest;
 import frc.robot.subsystems.HistoryFSM;
 import frc.robot.subsystems.Intake;
 import frc.robot.subsystems.MooreLikeFSM;
@@ -25,17 +25,18 @@ import java.util.Optional;
 public class RobotContainer {
 
   //FIXME options to select desired demonstrations
-  private boolean allExamples                 = true;
-  private boolean useAchieveHueGoal           = false || allExamples;
-  private boolean useGroupDisjointTest        = false || allExamples;
-  private boolean useHistoryFSM               = false || allExamples;
-  private boolean useIntake                   = false || allExamples;
-  private boolean useMooreLikeFSM             = false || allExamples;
-  private boolean useMooreLikeFSMMultiCommand = false || allExamples;
-  private boolean useAutonomousSignal         = false || allExamples;
-  private boolean useColorWheel               = false || allExamples;
-  private boolean useMainDefault              = false || allExamples;
-  private boolean useEnableDisable            = false || allExamples;
+  private boolean allExamples                  = true;
+  private boolean useAchieveHueGoal            = false || allExamples;
+  private boolean useGroupDisjointSequenceTest = false || allExamples;
+  private boolean useGroupDisjointParallelTest = false || allExamples;
+  private boolean useHistoryFSM                = false || allExamples;
+  private boolean useIntake                    = false || allExamples;
+  private boolean useMooreLikeFSM              = false || allExamples;
+  private boolean useMooreLikeFSMMultiCommand  = false || allExamples;
+  private boolean useAutonomousSignal          = false || allExamples;
+  private boolean useColorWheel                = false || allExamples;
+  private boolean useMainDefault               = false || allExamples;
+  private boolean useEnableDisable             = false || allExamples;
 
   //FIXME options for logging
   private boolean useConsole            = false;
@@ -44,7 +45,7 @@ public class RobotContainer {
 
   // required classes and subsystems
 
-  final int operatorControllerPort = 0; // user configuarable port
+  final int operatorControllerPort = 0; // user configurable port
   private final CommandXboxController m_operatorController = new CommandXboxController(operatorControllerPort);
   public CommandXboxController getM_operatorController() {
     return m_operatorController;
@@ -62,9 +63,14 @@ public class RobotContainer {
     return m_achieveHueGoal;
   }
 
-  private Optional<GroupDisjointTest> m_groupDisjointTest = useGroupDisjointTest ? Optional.of(new GroupDisjointTest()) : Optional.empty(); // container and creator of all tests
-  public Optional<GroupDisjointTest> getM_groupDisjointTest() {
-    return m_groupDisjointTest;
+  private Optional<GroupDisjointSequenceTest> m_groupDisjointSequenceTest = useGroupDisjointSequenceTest ? Optional.of(new GroupDisjointSequenceTest()) : Optional.empty(); // container and creator of all tests
+  public Optional<GroupDisjointSequenceTest> getM_groupDisjointSequenceTest() {
+    return m_groupDisjointSequenceTest;
+  }
+
+  private Optional<Boolean> m_groupDisjointParallelTest = useGroupDisjointParallelTest ? Optional.of(true) : Optional.empty();
+  public Optional<Boolean> getM_groupDisjointParallelTest() {
+    return m_groupDisjointParallelTest;
   }
 
   private Optional<HistoryFSM> m_historyFSM = useHistoryFSM ? Optional.of(new HistoryFSM(m_robotSignals.m_historyDemo)) : Optional.empty();
@@ -92,7 +98,7 @@ public class RobotContainer {
     return m_autonomousSignal;
   }
 
-  private Optional<Boolean> m_colorWheel = useColorWheel ? Optional.of(true): Optional.empty();
+  private Optional<Boolean> m_colorWheel = useColorWheel ? Optional.of(true) : Optional.empty();
   public Optional<Boolean> getM_useColorWheel() {
     return m_colorWheel;
   }
@@ -178,7 +184,7 @@ public class RobotContainer {
    */
   public void runBeforeCommands() {
     m_achieveHueGoal          .ifPresent((x)->x.runBeforeCommands());
-    m_groupDisjointTest       .ifPresent((x)->x.runBeforeCommands());
+    m_groupDisjointSequenceTest       .ifPresent((x)->x.runBeforeCommands());
     m_historyFSM              .ifPresent((x)->x.runBeforeCommands());
     m_intake                  .ifPresent((x)->x.runBeforeCommands());
     m_mooreLikeFSM            .ifPresent((x)->x.runBeforeCommands());
@@ -194,7 +200,7 @@ public class RobotContainer {
    */
   public void runAfterCommands() {
     m_achieveHueGoal          .ifPresent((x)->x.runAfterCommands());
-    m_groupDisjointTest       .ifPresent((x)->x.runAfterCommands());
+    m_groupDisjointSequenceTest       .ifPresent((x)->x.runAfterCommands());
     m_historyFSM              .ifPresent((x)->x.runAfterCommands());
     m_intake                  .ifPresent((x)->x.runAfterCommands());
     m_mooreLikeFSM            .ifPresent((x)->x.runAfterCommands());
