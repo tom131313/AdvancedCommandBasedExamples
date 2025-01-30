@@ -133,15 +133,12 @@ public abstract class CommandsTriggers {
 
   private static final Command firstJob = runOnce(()->
           {
+            firstJobTriggersSecond.setPressed(false); // add this - assuming not running a .whileTrue()
             System.out.println("first job running");
-            firstJobTriggersSecond.setPressed(true); // add this to the first command; assuming next running with some "...True()"
+            firstJobTriggersSecond.setPressed(true); // add this - assuming next running with some "...True()"
           });
 
-  private static final Command secondJob = runOnce(()->
-          {
-            firstJobTriggersSecond.setPressed(false); // add this to the second command; reset for next time - assuming not running a .whileTrue()
-            System.out.println("second job running");
-          });
+  private static final Command secondJob = print("second job running");
 
 /**
    * Get first command triggers next command test
