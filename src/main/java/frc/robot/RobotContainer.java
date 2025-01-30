@@ -29,6 +29,7 @@ public class RobotContainer {
   private boolean useAchieveHueGoal            = false || allExamples;
   private boolean useGroupDisjointSequenceTest = false || allExamples;
   private boolean useGroupDisjointParallelTest = false || allExamples;
+  private boolean useTriggerNextCommand        = false || allExamples;
   private boolean useHistoryFSM                = false || allExamples;
   private boolean useIntake                    = false || allExamples;
   private boolean useMooreLikeFSM              = false || allExamples;
@@ -71,6 +72,11 @@ public class RobotContainer {
   private Optional<Boolean> m_groupDisjointParallelTest = useGroupDisjointParallelTest ? Optional.of(true) : Optional.empty();
   public Optional<Boolean> getM_groupDisjointParallelTest() {
     return m_groupDisjointParallelTest;
+  }
+
+  private Optional<Boolean> m_triggerNextCommand = useTriggerNextCommand ? Optional.of(true) : Optional.empty();
+  public Optional<Boolean> getM_triggerNextCommand() {
+    return m_triggerNextCommand;
   }
 
   private Optional<HistoryFSM> m_historyFSM = useHistoryFSM ? Optional.of(new HistoryFSM(m_robotSignals.m_historyDemo)) : Optional.empty();
@@ -126,7 +132,7 @@ public class RobotContainer {
   @SuppressWarnings("resource")
   public RobotContainer() {
 
-    if(!allExamples) new Alert("Not using allExamples", AlertType.kError).set(true);
+    if (!allExamples) new Alert("Not using allExamples", AlertType.kError).set(true);
  
     /* There are thousands of ways to do logging.
      * Here are 3 ways with options within the method.
@@ -183,13 +189,13 @@ public class RobotContainer {
    *
    */
   public void runBeforeCommands() {
-    m_achieveHueGoal          .ifPresent((x)->x.runBeforeCommands());
-    m_groupDisjointSequenceTest       .ifPresent((x)->x.runBeforeCommands());
-    m_historyFSM              .ifPresent((x)->x.runBeforeCommands());
-    m_intake                  .ifPresent((x)->x.runBeforeCommands());
-    m_mooreLikeFSM            .ifPresent((x)->x.runBeforeCommands());
-    m_mooreLikeFSMMultiCommand.ifPresent((x)->x.runBeforeCommands());
-    m_robotSignals                                  .runBeforeCommands();
+    m_achieveHueGoal           .ifPresent((x)->x.runBeforeCommands());
+    m_groupDisjointSequenceTest.ifPresent((x)->x.runBeforeCommands());
+    m_historyFSM               .ifPresent((x)->x.runBeforeCommands());
+    m_intake                   .ifPresent((x)->x.runBeforeCommands());
+    m_mooreLikeFSM             .ifPresent((x)->x.runBeforeCommands());
+    m_mooreLikeFSMMultiCommand .ifPresent((x)->x.runBeforeCommands());
+    m_robotSignals                              .runBeforeCommands();
   }
 
   /**
@@ -199,12 +205,12 @@ public class RobotContainer {
    * classes that have periodic outputs
    */
   public void runAfterCommands() {
-    m_achieveHueGoal          .ifPresent((x)->x.runAfterCommands());
-    m_groupDisjointSequenceTest       .ifPresent((x)->x.runAfterCommands());
-    m_historyFSM              .ifPresent((x)->x.runAfterCommands());
-    m_intake                  .ifPresent((x)->x.runAfterCommands());
-    m_mooreLikeFSM            .ifPresent((x)->x.runAfterCommands());
-    m_mooreLikeFSMMultiCommand.ifPresent((x)->x.runAfterCommands());
-    m_robotSignals                                  .runAfterCommands();
+    m_achieveHueGoal           .ifPresent((x)->x.runAfterCommands());
+    m_groupDisjointSequenceTest.ifPresent((x)->x.runAfterCommands());
+    m_historyFSM               .ifPresent((x)->x.runAfterCommands());
+    m_intake                   .ifPresent((x)->x.runAfterCommands());
+    m_mooreLikeFSM             .ifPresent((x)->x.runAfterCommands());
+    m_mooreLikeFSMMultiCommand .ifPresent((x)->x.runAfterCommands());
+    m_robotSignals                              .runAfterCommands();
   }
 }

@@ -33,6 +33,7 @@ public abstract class CommandsTriggers {
   private static Optional<AchieveHueGoal>    m_achieveHueGoal;
   private static Optional<GroupDisjointSequenceTest> m_groupDisjointSequenceTest;
   private static Optional<Boolean>           m_groupDisjointParallelTest;
+  private static Optional<Boolean>           m_triggerNextCommand;
   private static Optional<HistoryFSM>        m_historyFSM;
   private static Optional<Intake>            m_intake;
   private static Optional<Boolean>           m_UseAutonomousSignal;
@@ -50,6 +51,7 @@ public abstract class CommandsTriggers {
     m_achieveHueGoal = robotContainer.getM_achieveHueGoal();
     m_groupDisjointSequenceTest = robotContainer.getM_groupDisjointSequenceTest();
     m_groupDisjointParallelTest = robotContainer.getM_groupDisjointParallelTest();
+    m_triggerNextCommand = robotContainer.getM_triggerNextCommand();
     m_historyFSM = robotContainer.getM_historyFSM();
     m_intake = robotContainer.getM_intake();
     m_UseAutonomousSignal = robotContainer.getM_autonomousSignal();
@@ -87,7 +89,7 @@ public abstract class CommandsTriggers {
    */
   @SuppressWarnings("resource")
   public static Command getDisjointedSequenceTest() {
-    if(m_groupDisjointSequenceTest.isPresent())
+    if (m_groupDisjointSequenceTest.isPresent())
     {
       return m_groupDisjointSequenceTest.get().m_disjointedSequenceTest;
     }
@@ -98,13 +100,13 @@ public abstract class CommandsTriggers {
   }
 
   /**
-   * Get disjointed parallel test from its creator for use by Robot - passing the reference up
+   * Get disjointed parallel test from its creator for use by Robot
    * 
    * @return Command to be scheduled to run disjointed parallel test
    */
   @SuppressWarnings("resource")
   public static Command getDisjointedParallelTest() {
-    if(m_groupDisjointParallelTest.isPresent())
+    if (m_groupDisjointParallelTest.isPresent())
     {
       return
         // testing the TriggeredDisjointParallelGroup
@@ -129,7 +131,7 @@ public abstract class CommandsTriggers {
   private static final InternalButton firstJobTriggersSecond = new InternalButton(); // configure the action decorator must be executed somewhere
   // else and not here because of circular reference - trigger would reference the command and the command would reference the trigger
 
-  public static final Command firstJob = runOnce(()->
+  private static final Command firstJob = runOnce(()->
           {
             System.out.println("first job running");
             firstJobTriggersSecond.setPressed(true); // add this to the first command; assuming next running with some "...True()"
@@ -141,6 +143,23 @@ public abstract class CommandsTriggers {
             System.out.println("second job running");
           });
 
+/**
+   * Get first command triggers next command test
+   * 
+   * @return Command to be scheduled to run trigger next command test
+   */
+  @SuppressWarnings("resource")
+  public static Command getFirstCommandTriggersNextTest() {
+    if (m_triggerNextCommand.isPresent())
+    {
+      return firstJob;      
+    }
+    else
+    {
+      return runOnce(()-> new Alert("Trigger Next Command Test not selected", AlertType.kWarning).set(true));
+    }
+  }
+
   /**
    * Create a command to signal Autonomous mode
    *
@@ -150,7 +169,7 @@ public abstract class CommandsTriggers {
    */
   @SuppressWarnings("resource")
   public static Command setAutonomousSignal() {
-    if(m_UseAutonomousSignal.isPresent()) {
+    if (m_UseAutonomousSignal.isPresent()) {
       LEDPattern autoTopSignal =
             LEDPattern.solid(new Color(0.1, 0.2, 0.2))
             .blend(LEDPattern.solid(new Color(0.7, 0.2, 0.2)).blink(Seconds.of(0.1)));
@@ -230,7 +249,9 @@ public abstract class CommandsTriggers {
   }
 
   private static void configureTriggerBindings() {
-    firstJobTriggersSecond.onTrue(secondJob);
+    if (m_triggerNextCommand.isPresent()) { // no sense doing this if not requested
+      firstJobTriggersSecond.onTrue(secondJob);
+    }
   }
 
   /**

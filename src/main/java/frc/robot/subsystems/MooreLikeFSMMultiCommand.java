@@ -193,7 +193,7 @@ public class MooreLikeFSMMultiCommand extends SubsystemBase {
    */
   public void startFSM()
   {
-     if(!m_FSMactive)
+     if (!m_FSMactive)
     {
       // if the FSM has its own event loop, the loop could be started here
       m_FSMactive = true;
@@ -232,14 +232,14 @@ public class MooreLikeFSMMultiCommand extends SubsystemBase {
       int bufLen = reader.getLength();
 
       for (int led = 0; led < bufLen; led++) {
-        if(led == index) {
+        if (led == index) {
           writer.setLED(led, colorForeground);              
-        } else if((led == index-2 && index-2 >= 0) || (led == index+2 && index+2 < bufLen)) {
+        } else if ((led == index-2 && index-2 >= 0) || (led == index+2 && index+2 < bufLen)) {
           writer.setRGB(led,
            (int) (colorForeground.red * dim),
            (int) (colorForeground.green * dim),
            (int) (colorForeground.blue * dim));
-        } else if((led == index-1 && index-1 >= 0) || (led == index+1 && index+1 < bufLen)) {
+        } else if ((led == index-1 && index-1 >= 0) || (led == index+1 && index+1 < bufLen)) {
           writer.setRGB(led,
            (int) (colorForeground.red * slightlyDim),
            (int) (colorForeground.green * slightlyDim),

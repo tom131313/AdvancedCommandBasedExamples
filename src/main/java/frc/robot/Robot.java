@@ -258,7 +258,7 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopInit() {
     // Commands running from another mode haven't been cancelled directly except the one below.
-    if(m_autonomousSignal != null) { // check null in case not initialized in auto mode
+    if (m_autonomousSignal != null) { // check null in case not initialized in auto mode
       m_autonomousSignal.cancel(); // cancel in case still running
     }
     CommandsTriggers.getDisjointedSequenceTest().schedule();
@@ -280,6 +280,6 @@ public class Robot extends TimedRobot {
 
   @Override
   public void testExit() {
-    CommandsTriggers.firstJob.schedule();
+    CommandsTriggers.getFirstCommandTriggersNextTest().schedule();
   }
 }
