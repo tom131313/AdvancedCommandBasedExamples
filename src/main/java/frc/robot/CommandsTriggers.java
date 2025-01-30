@@ -19,6 +19,7 @@ import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.InternalButton;
 import frc.robot.subsystems.AchieveHueGoal;
 import frc.robot.subsystems.GroupDisjointSequenceTest;
 import frc.robot.subsystems.HistoryFSM;
@@ -57,6 +58,7 @@ public abstract class CommandsTriggers {
     m_UseEnableDisable = robotContainer.getM_useEnableDisable();
 
     configureGameControllersBindings();
+    configureTriggerBindings();
     configureDefaultCommands();
   }
 
@@ -123,6 +125,21 @@ public abstract class CommandsTriggers {
       return runOnce(()-> new Alert("Group Disjointed Parallel Test not selected", AlertType.kWarning).set(true));
     }
   }
+
+  private static final InternalButton firstJobTriggersSecond = new InternalButton(); // configure the action decorator must be executed somewhere
+  // else and not here because of circular reference - trigger would reference the command and the command would reference the trigger
+
+  public static final Command firstJob = runOnce(()->
+          {
+            System.out.println("first job running");
+            firstJobTriggersSecond.setPressed(true); // add this to the first command; assuming next running with some "...True()"
+          });
+
+  private static final Command secondJob = runOnce(()->
+          {
+            firstJobTriggersSecond.setPressed(false); // add this to the second command; reset for next time - assuming not running a .whileTrue()
+            System.out.println("second job running");
+          });
 
   /**
    * Create a command to signal Autonomous mode
@@ -210,6 +227,10 @@ public abstract class CommandsTriggers {
       m_operatorController.a()
           .onTrue(x.interrupt());
     });
+  }
+
+  private static void configureTriggerBindings() {
+    firstJobTriggersSecond.onTrue(secondJob);
   }
 
   /**

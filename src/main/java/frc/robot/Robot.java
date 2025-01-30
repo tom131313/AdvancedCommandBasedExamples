@@ -77,6 +77,10 @@
  *  TriggeredDisjointParallelGroup demo is somewhat similar to the TriggeredDisjointSequenceGroup
  *  and is activated by entering test mode.
  * 
+ *  Another similar technique is activated by exiting test mode. This is a simple activation of a
+ *  command by another command by using a trigger. This is a preferred method of disjointing
+ *  commands and breaking long commands into small parts.
+ * 
  *
  * There are user-selectable options to run the various examples. The default is to run all of them.
  * 
@@ -275,5 +279,7 @@ public class Robot extends TimedRobot {
   public void testPeriodic() {}
 
   @Override
-  public void testExit() {}
+  public void testExit() {
+    CommandsTriggers.firstJob.schedule();
+  }
 }
