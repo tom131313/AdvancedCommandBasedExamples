@@ -128,6 +128,14 @@ public abstract class CommandsTriggers {
     }
   }
 
+  // Configuration of the trigger's action decorator must be executed somewhere. If the next
+  // command in the action does not reference the trigger then it can be configured here.
+  // If the action next command references the trigger, then set it in some initializing method
+  // because of circular reference - trigger would reference the command and the command would
+  // reference the trigger.
+  // Even if the second command doesn't reference the trigger, an initializing method may be
+  // advantageous to include logic not to set the trigger action, if some option is set not to use
+  // it as in this example.
   private static final InternalButton firstJobTriggersSecond = new InternalButton(); // configure the action decorator must be executed somewhere
   // else and not here because of circular reference - trigger would reference the command and the command would reference the trigger
 
