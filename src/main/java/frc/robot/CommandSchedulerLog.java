@@ -72,7 +72,7 @@ public class CommandSchedulerLog
      * Convert recording to csv and they show nicely in Excel.
      * 
      * <p>If using DataLog tool, the recording is via NT so tell NT to send EVERYTHING to the DataLog.
-     * Run DataLog tool to retrieve log from roboRIO and convert the log to csv.
+     * Run DataLog tool to retrieve log from roboRIO and convert the log to a csv table.
      * 
      * <p>Note the comment in execute logging that only the first execute is logged unless changed.
      * 
@@ -137,10 +137,18 @@ public class CommandSchedulerLog
     public void logCommandInterrupt()
     {
         CommandScheduler.getInstance().onCommandInterrupt(
-            (command) ->
+            (command, interruptedBy) ->
             {
+                String interrupter;
+                if (interruptedBy.isPresent()) {
+                    interrupter =  "interrupted by " + command.getClass().getSimpleName() + "/" + interruptedBy.get().getName();
+                }
+                else {
+                    interrupter = "not interrupted";
+                }
+
                 String key = command.getClass().getSimpleName() + "/" + command.getName();
-                String runs = " after " + m_currentCommands.getOrDefault(key, 0) + " runs";
+                String runs = " after " + m_currentCommands.getOrDefault(key, 0) + " runs " + interrupter;
 
                 if (m_useConsole) {
                     System.out.println("Command interrupted : " + key + runs);                    
@@ -149,7 +157,7 @@ public class CommandSchedulerLog
                     m_interruptCommandLogEntry.set(key + runs);                    
                 } 
                 if (m_useShuffleBoardLog) {
-                    Shuffleboard.addEventMarker("Command interrupted", key, EventImportance.kNormal);
+                    Shuffleboard.addEventMarker("Command interrupted", key + runs, EventImportance.kNormal);
                 }
 
                 m_currentCommands.put(key, 0);
