@@ -15,8 +15,8 @@ import edu.wpi.first.wpilibj2.command.button.InternalButton;
  * Somewhat similar to using "proxies" but uses "triggers"
  * 
  * Inspired by ChiefDelphi poster ATsignbovlb
-<pre>
-Usage:
+<p>Usage:
+<pre><code>
     new TriggeredDisjointParallelGroup(true,
         Commands.print("immediately printed and waiting 4 seconds")
           .andThen(waitSeconds(4.))
@@ -28,7 +28,7 @@ Usage:
         waitSeconds(2).andThen(Commands.print("at 2 of 6 seconds")),
         waitSeconds(3).andThen(Commands.print("at 3 of 6 seconds"))   
       ).schedule();
-</pre>
+</code></pre>
 */
 
 public final class TriggeredDisjointParallelGroup extends WrapperCommand {

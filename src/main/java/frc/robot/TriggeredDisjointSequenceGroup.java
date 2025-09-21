@@ -13,15 +13,11 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * 
  * Compares to using "proxies" but uses "triggers"
  * 
- * 
- * From ChiefDelphi poster @bovlb
- */
+ * From ChiefDelphi poster ATsignbovlb
+ * <p>Usage:
 
-/*
-
-Usage:
-
-good example with best practice of using command factories
+<p>good example with best practice of using command factories
+<pre><code>
 Command test = TriggeredDisjointSequenceGroup.run(
     mySubsystem.test1(),
     mySubsystem.test2(),
@@ -29,8 +25,9 @@ Command test = TriggeredDisjointSequenceGroup.run(
     mySubsystem.test4(),
     mySubsystem.test1()); // fresh Command from its factory so it doesn't conflict with other one
 test.schedule();
-
-bad example of the pitfall of not using command factories
+</code></pre>
+<p>bad example of the pitfall of not using command factories
+<pre><code>
 Command test = TriggeredDisjointSequenceGroup.run(
     test1,
     test2,
@@ -41,12 +38,8 @@ Command test = TriggeredDisjointSequenceGroup.run(
     runOnce(()->CommandScheduler.getInstance().removeComposedCommand(test1)),
     test1);
 test.schedule();
+</code></pre>
 
-*/
-
-/**
- * A command group that runs a list of commands in sequence.
- *
  * <p>Because each component command is individually composed, some rules for command compositions
  * apply: commands that are passed to it cannot be added to any other composition or scheduled
  * individually unless first released by

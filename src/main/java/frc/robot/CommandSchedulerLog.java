@@ -13,35 +13,32 @@ import java.util.HashMap;
 import java.util.stream.Collectors;
 
 /**
- * This class could be used this way:
+ * Log Command Scheduler actions for command initialize, execute, interrupt, finish
+ * <p>This class could be used this way:
  *
-//   // options for logging
-//   private boolean useConsole            = false;
-//   private boolean useDataLog            = true;
-//   private boolean useShuffleBoardLog    = false;
+<pre><code>
+  // options for logging
+  private boolean useConsole            = false;
+  private boolean useDataLog            = true;
+  private boolean useShuffleBoardLog    = false;
 
-//     /* There are thousands of ways to do logging.
-//      * Here are 3 ways with options within the method.
-//      /
-//     configureCommandLogs(); // do early on otherwise log not ready for first commands
+  configureCommandLogs(); // do early on otherwise log not ready for first commands
 
-// /**
-//    * Configure Command logging to Console/Terminal, DataLog, or ShuffleBoard
-//    /
-//   @SuppressWarnings("resource")
-//   public void configureCommandLogs()
-//   {
-//       if (useConsole || useDataLog || useShuffleBoardLog) {
-//         schedulerLog = new CommandSchedulerLog(useConsole, useDataLog, useShuffleBoardLog);
-//         schedulerLog.logCommandInitialize();
-//         schedulerLog.logCommandInterrupt();
-//         schedulerLog.logCommandFinish();
-//         schedulerLog.logCommandExecute();  // Can (optionally) generate a lot of output        
-//       }
-//       else {
-//         new Alert("No logging", AlertType.kWarning).set(true);
-//       }
-//   }
+  @SuppressWarnings("resource")
+  public void configureCommandLogs()
+  {
+      if (useConsole || useDataLog || useShuffleBoardLog) {
+        schedulerLog = new CommandSchedulerLog(useConsole, useDataLog, useShuffleBoardLog);
+        schedulerLog.logCommandInitialize();
+        schedulerLog.logCommandInterrupt();
+        schedulerLog.logCommandFinish();
+        schedulerLog.logCommandExecute();  // Can (optionally) generate a lot of output        
+      }
+      else {
+        new Alert("No logging", AlertType.kWarning).set(true);
+      }
+  }
+</code></pre>
  */
 public class CommandSchedulerLog 
 {
@@ -141,17 +138,17 @@ public class CommandSchedulerLog
             {
                 String interrupter;
                 if (interruptedBy.isPresent()) {
-                    interrupter =  "interrupted by " + command.getClass().getSimpleName() + "/" + interruptedBy.get().getName();
+                    interrupter =  "interrupted by command " + command.getClass().getSimpleName() + "/" + interruptedBy.get().getName();
                 }
                 else {
-                    interrupter = "not interrupted";
+                    interrupter = "interrupted"; // interrupted not by a command - mode change, cancelled, timeOut, until, etc.
                 }
 
                 String key = command.getClass().getSimpleName() + "/" + command.getName();
                 String runs = " after " + m_currentCommands.getOrDefault(key, 0) + " runs " + interrupter;
 
                 if (m_useConsole) {
-                    System.out.println("Command interrupted : " + key + runs);                    
+                    System.out.println(key + runs);                    
                 }
                 if (m_useDataLog) {
                     m_interruptCommandLogEntry.set(key + runs);                    
