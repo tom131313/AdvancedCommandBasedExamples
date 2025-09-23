@@ -374,7 +374,7 @@ public class MooreLikeFSMMultiCommand extends SubsystemBase {
   /**
    * Trigger State template
    * @param currentState - the state that will be exited
-   * @param triggerTimePeriod - the time period to trigger the rtansition
+   * @param triggerTimePeriod - the time period to trigger the transition
    * @return trigger to exit the given state at the right time if the FSM is active
    */
   private Trigger triggerState(State currentState, int triggerTimePeriod) {
