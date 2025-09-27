@@ -66,14 +66,14 @@ public class StateMachine extends Command {
 /////////////////////////////////////
 
 private class WrapState extends WrapperCommand {
+
   WrapState(Command command) {
     super(command); // should be state command to run at this time
   }
 
   public void initialize() {
-    // System.out.println("Wrapper initialize");
+    System.out.println("Wrapper initialize");
     events.clear(); // wipe the previous state's triggers
-    // stateCompleted = false;
 
       State currentState = null;
       if (currentTransitionID != 0) {
@@ -81,11 +81,11 @@ private class WrapState extends WrapperCommand {
       // loop through list of states with their list of transitions
       allTransitions:
       for (Map.Entry<State, List<Transition>> exitsIterate : transitions.entrySet()) {
-
         for (Transition transition : exitsIterate.getValue()) {
           if (transition.transitionID == currentTransitionID) {
-            exitsIterate.getKey().stateCommandAugmented.cancel();
+            if (! stateCompletedNormally) exitsIterate.getKey().stateCommandAugmented.cancel(); // cancel previous since it didn't end of its own accord
             currentState = transition.nextState; // current state from previous state trigger that got us here
+            System.out.println("cancelled " + exitsIterate.getKey().name + " entering " + currentState.name);
             break allTransitions;
           }
         }
@@ -102,7 +102,10 @@ private class WrapState extends WrapperCommand {
           .onTrue(transition.nextState.stateCommandAugmented);
       }
     }
-    m_command.initialize(); // original command  
+    
+    stateCompletedNormally = false;
+
+    m_command.initialize(); // Wrapper is done with its fussing so tell original command to initialize
  }
 
  /**
@@ -110,10 +113,11 @@ private class WrapState extends WrapperCommand {
   * when it interrupted/canceled.
   * @param interrupted whether the command was interrupted/canceled
   */
+  @Override
  public void end(boolean interrupted) {
-  System.out.println("wrapper end interrupt " + interrupted);
-   // find which event interrupted this state and schedule the next state
-   m_command.end(interrupted);
+   m_command.end(interrupted); // tell original command to end and if this wrapper was interrupted or not
+   System.out.println("wrapper end by interrupt " + interrupted);
+   if (!interrupted) stateCompletedNormally = true; // state ended by itself so this can be used for a whenComplete condition for trigger of the next state
  }
 
  /**
@@ -123,9 +127,9 @@ private class WrapState extends WrapperCommand {
   * @return whether the command has finished.
   */
  public boolean isFinished() {
-    stateCompleted = m_command.isFinished(); // check for the command finished, remember that and pass that along
-    if (stateCompleted) System.out.println("Wrapper isFinished " + stateCompleted);
-    return stateCompleted;
+    var completed = m_command.isFinished(); // check original command finished by itself or not, remember that and pass that along
+    if (completed) System.out.println("Wrapper isFinished; everything completed normally " + completed);
+    return completed; // Wrapper follows underlying command
  }
 } // end class WrapState
 
@@ -141,7 +145,7 @@ private class WrapState extends WrapperCommand {
   
   private State initialState;
   
-  boolean stateCompleted;
+  boolean stateCompletedNormally; // used for transition trigger whenComplete
 
   public StateMachine(String name) {
     setName(name);
@@ -156,8 +160,8 @@ private class WrapState extends WrapperCommand {
     this.initialState = initialState;
   }
 
-  public State addState(Command stateCommand) {
-    return new State(stateCommand);
+  public State addState(String name, Command stateCommand) {
+    return new State(name, stateCommand);
   }
 
   /**
@@ -165,6 +169,7 @@ private class WrapState extends WrapperCommand {
    */
   public class State extends Command
   {
+    final String name;
     Command stateCommandAugmented; // the Wrapped (instrumented) state command that will actually be run
     List<Transition> exits = new ArrayList<Transition>(); // the transitions for this State
 
@@ -172,7 +177,8 @@ private class WrapState extends WrapperCommand {
      * creating a new State from a command
      * @param stateCommand
      */
-    private State(Command stateCommand) {
+    private State(String name, Command stateCommand) {
+      this.name = name;
       this.stateCommandAugmented = new WrapState(stateCommand);
     }
 
@@ -223,38 +229,31 @@ private class WrapState extends WrapperCommand {
         m_targetState = to;
       }
 
-      // /**
-      //  * Adds a transition that will be triggered when the specified condition is true.
-      //  *
-      //  * @param condition The condition that will trigger the transition. Cannot be null.
-      //  */
-      // public void when(BooleanSupplier condition) {
-      //   m_originatingState.addTransition(new Transition(m_targetState, condition));
-      // }
-
-      // /**
-      //  * Marks the transition when the originating state completes without having reached any other
-      //  * transitions first.
-      //  */
-      // public void whenComplete() {
-      //   m_originatingState.setNextState(m_targetState);
-      // }
-
-      // like when
-      public void when/*switchTo*/(BooleanSupplier condition) { // imply run until the event then transition
+      /**
+       * Adds a transition that will be triggered when the specified condition is true.
+       *
+       * @param condition The condition that will trigger the transition.
+       */
+      public void when(BooleanSupplier condition) { // imply run until the event then transition
         transitionID++;
         final int ID = transitionID;
         exits.add(new Transition(m_targetState, ()-> {currentTransitionID = ID; return condition.getAsBoolean();}, transitionID)); // add a transition to the list of this state
         transitions.put(State.this, exits); // list of transitions for this state in the master list of all state transitions
-        new Trigger(condition).onTrue(Commands.print("tripped the trigger"));
+        new Trigger(condition).onTrue(Commands.print("double check condition tripped the trigger"));
+        // printTransitions("when with " + transitionID);
       }
 
-      // like whenComplete
-      public void whenComplete/*switchTo*/() { // imply run until completed then transition
+      /**
+       * Marks the transition when the originating state completes without having reached any other
+       * transitions first.
+       */
+      public void whenComplete() {
         transitionID++;
         final int ID = transitionID;
-        exits.add(new Transition(m_targetState, ()-> {currentTransitionID = ID; return stateCompleted;}, transitionID)); // add a transition to the list of this state
+        exits.add(new Transition(m_targetState, ()-> {currentTransitionID = ID; return stateCompletedNormally;}, transitionID)); // add a transition to the list of this state
         transitions.put(State.this, exits); // list of transitions for this state in the master list of all state transitions
+        new Trigger(()->stateCompletedNormally).onTrue(Commands.print("double check state completed tripped the trigger"));
+        // printTransitions("whenComplete with " + transitionID);
       }
     } // end class NeedsConditionTransitionBuilder
   } // end class State
@@ -274,8 +273,21 @@ private class WrapState extends WrapperCommand {
     }
   } // end class Transition
 
+    /**
+     * print transition map
+     */
+    public void printTransitions(String title) {
+      for (Map.Entry<State, List<Transition>> allExits : transitions.entrySet()) {
+        System.out.println("\n" + title + " FSM state transitions from " + allExits.getKey().name);
+        for (Transition transition : allExits.getValue()) {
+          System.out.println("transition "
+           + transition + " , to " + transition.nextState.name + " , " + transition.triggeringEvent + " , ID " + transition.transitionID);
+        }
+      }
+    }
+
     private Command stopFSM = Commands.runOnce(()->FSMfinished = true); // mark FSM to stop to end that running command, too
-    public final State stop = new State(stopFSM); // 
+    public final State stop = new State("stop", stopFSM); // 
 
   /**
    * Usage:
@@ -289,8 +301,8 @@ private class WrapState extends WrapperCommand {
   public static void FSMtest() {
     System.out.println("StateMachine");
 
-    final DigitalInput x = new DigitalInput(0);
-    BooleanSupplier atScoringLocation = ()->x.get();
+    final DigitalInput DI_0 = new DigitalInput(0);
+    BooleanSupplier atScoringLocation = ()-> DI_0.get();
 
     Command drive_followPath = Commands.deadline(Commands.waitSeconds(1000.), Commands.print("pathing")).finallyDo(()->System.out.println("end pathing"));
     Command scorer_score = Commands.print("scoring").andThen(Commands.waitSeconds(1.)).finallyDo(()->System.out.println("end scoring"));
@@ -298,39 +310,71 @@ private class WrapState extends WrapperCommand {
 
     StateMachine auto = new StateMachine("Example State Machine");
 
-    State pathing = auto.addState(drive_followPath);
-    State scoring = auto.addState(scorer_score);
-    State celebrating = auto.addState(leds_celebrate);
+    State pathing = auto.addState("pathing state", drive_followPath);
+    State scoring = auto.addState("scoring state", scorer_score);
+    State celebrating = auto.addState("celebrating state", leds_celebrate);
+    
     auto.setInitialState(pathing);
 
     pathing.switchTo(scoring).when(atScoringLocation);
     scoring.switchTo(celebrating).whenComplete();
     celebrating.switchTo(pathing).whenComplete();
     celebrating.switchTo(auto.stop).when(atScoringLocation);
+    auto.printTransitions("");
 
     auto.schedule();
-        /* testit results
+        /* FSMtest results
 refactor chained build work in progress not right yet
  - note that the test case was changed so results should be different but t his isn't right, I think.
+
 StateMachine
+
+ FSM state transitions from scoring state
+transition frc.robot.subsystems.StateMachine$Transition@476f1571 , to celebrating state , frc.robot.subsystems.StateMachine$State$NeedsConditionTransitionBuilder$$Lambda$186/0x000001a7810c0428@51d7deab , ID 2
+
+ FSM state transitions from pathing state
+transition frc.robot.subsystems.StateMachine$Transition@79c14819 , to scoring state , frc.robot.subsystems.StateMachine$State$NeedsConditionTransitionBuilder$$Lambda$185/0x000001a7810c0208@b025376 , ID 1
+
+ FSM state transitions from celebrating state
+transition frc.robot.subsystems.StateMachine$Transition@7166318c , to pathing state , frc.robot.subsystems.StateMachine$State$NeedsConditionTransitionBuilder$$Lambda$186/0x000001a7810c0428@5bb32eef , ID 3
+transition frc.robot.subsystems.StateMachine$Transition@28c12400 , to stop , frc.robot.subsystems.StateMachine$State$NeedsConditionTransitionBuilder$$Lambda$185/0x000001a7810c0208@31c14b8d , ID 4
+Wrapper initialize
+
 pathing
-tripped the trigger
-tripped the trigger
-wrapper end interrupt true
+double check condition tripped the trigger
+double check condition tripped the trigger
+Wrapper initialize
 end pathing
+wrapper end by interrupt true
+
+cancelled pathing state entering scoring state
+
 scoring
-Wrapper isFinished true
-wrapper end interrupt false
+Wrapper isFinished; everything completed normally true
 end scoring
+wrapper end by interrupt false
+
+double check state completed tripped the trigger
+double check state completed tripped the trigger
+
+Wrapper initialize
+
+cancelled scoring state entering celebrating state
 celebrating
-tripped the trigger
-tripped the trigger
-wrapper end interrupt true
+Wrapper isFinished; everything completed normally true
 end celebrating
-Wrapper isFinished true
-wrapper end interrupt false
-tripped the trigger
-tripped the trigger
+wrapper end by interrupt false
+
+double check state completed tripped the trigger
+double check state completed tripped the trigger
+
+Wrapper initialize
+cancelled celebrating state entering stop
+pathing
+---hung-- ???????
+double check condition tripped the trigger
+double check condition tripped the trigger
+
 
 
 
@@ -353,31 +397,3 @@ previous good
         */    
   } // end method FSMtest
 } // end class StateMachine
-
-/* Sam C. specification
-// Declare the state machine
-StateMachine auto = new StateMachine();
-
-// Declare states
-State pathing = auto.addInitialState(drive.followPath());
-State scoring = auto.addState(scorer.score());
-State celebrating = auto.addState(leds.celebrate());
-
-// Declare transitions between states
-pathing.transitionsTo(scoring).when(atScoringLocation);
-scoring.transitionsTo(celebrating).whenComplete();
-
-// StateMachine implements Command for seamless
-// integration with the commands API
-RobotModeTriggers.autonomous().onTrue(auto);
-*/
-
-
-
-// print transition map
-// for (Map.Entry<State, List<Transition>> allExits : auto.transitions.entrySet()) {
-//   System.out.println("FSM state  transitions " + allExits.getKey());
-//   for (Transition transition : allExits.getValue()) {
-//     System.out.println("transition " + transition + " , " + transition.nextState + " , " + transition.triggeringEvent + " , " + transition.transitionID);
-//   }
-// }
