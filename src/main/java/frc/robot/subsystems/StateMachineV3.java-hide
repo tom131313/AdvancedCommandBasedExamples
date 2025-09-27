@@ -1,0 +1,302 @@
+package frc.robot.subsystems;
+// not sure about the default initial state being the position of the addState() in the code. I think a safer way to reduce runtime
+// errors would be to have the initial State a parameter of the StateMachine constructor.
+// At the least the java doc at the beginning should mention the default and how it can be changed.
+
+// I think the to() method should be private not public
+// private NeedsConditionTransitionBuilder to(State to)
+
+
+import static edu.wpi.first.util.ErrorMessages.requireNonNullParam;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.function.BooleanSupplier;
+
+import edu.wpi.first.wpilibj2.command.Command;
+
+/**
+ * A declarative state machine that can be used to implement complex command routines. State machine
+ * setup should be done in stages: first, a state machine is created and its name is set; second,
+ * states are added to the state machine using {@link #addState(Command)}; third, transitions
+ * between states can be specified using {@link State#switchTo(State)}:
+ *
+ * <pre>{@code
+ * // Declare the state machine
+ * StateMachine stateMachine = new StateMachine("Example State Machine");
+ *
+ * // Declare states
+ * State state1 = stateMachine.addState(...);
+ * State state2 = stateMachine.addState(...);
+ * State state3 = stateMachine.addState(...);
+ *
+ * // Declare transitions
+ * state1.switchTo(state2).when(...);
+ * state2.switchTo(state3).when(...);
+ * }</pre>
+ *
+ * <p>Every state in a state machine runs a single command. While a state's command is running, the
+ * state machine will continually check all transitions that can be triggered from that state. If a
+ * transition is triggered, the state machine will cancel the state's command and move to the next
+ * state as defined by that transition. If no transition is triggered by the time the command
+ * completes, the state machine will exit unless a {@link
+ * NeedsConditionTransitionBuilder#whenComplete()} transition was specified from that state:
+ *
+ * <pre>{@code
+ * // switch from state1 to state2 when foo is true
+ * state1.switchTo(state2).when(() -> foo == true);
+ *
+ * // but if foo never becomes true, switch to state3 when state1 finishes
+ * state1.switchTo(state3).whenComplete();
+ *
+ * // no transitions are defined from state2 or state3,
+ * // so the state machine will exit when either state completes
+ * }</pre>
+ */
+public class StateMachineV3 implements Command {
+  private final String m_name;
+  private State m_initialState = null;
+
+  /**
+   * Creates a new state machine.
+   *
+   * @param name The name of the state machine. Cannot be null. This will appear in telemetry as the
+   *     {@link Command#name() name} of the state machine.
+   */
+  public StateMachineV3(String name) {
+    requireNonNullParam(name, "name", "StateMachine");
+    m_name = name;
+  }
+
+  @Override
+  public String name() {
+    return m_name;
+  }
+
+  @Override
+  public Set<Mechanism> requirements() {
+    // The machine itself doesn't have any requirements. Commands bound to the various states that
+    // the machine moves through may have requirements, however.
+    return Set.of();
+  }
+
+  /**
+   * Adds a new state to the state machine. If no states have been added yet, the state will be
+   * automatically set as the initial state. State transitions can be specified on the new state
+   * using {@link State#switchTo(State)}.
+   *
+   * @param command The command for the state to execute. Cannot be null.
+   * @return The newly created state.
+   */
+  // @NoDiscard
+  public State addState(Command command) {
+    requireNonNullParam(command, "command", "StateMachine.addState");
+    var state = new State(this, command);
+    if (m_initialState == null) {
+      m_initialState = state;
+    }
+    return state;
+  }
+
+  /**
+   * Sets the initial state for the state machine.
+   *
+   * @param initialState The new initial state. Cannot be null.
+   */
+  public void setInitialState(State initialState) {
+    requireNonNullParam(initialState, "initialState", "StateMachine.setInitialState");
+    if (!this.equals(initialState.m_stateMachine)) {
+      throw new IllegalArgumentException("Cannot set initial state in a different state machine");
+    }
+    m_initialState = initialState;
+  }
+
+  @Override
+  public void run(Coroutine coroutine) {
+    var currentState = m_initialState;
+
+    state_machine_loop:
+    while (currentState != null) {
+      final var currentCommand = currentState.command();
+      coroutine.fork(currentCommand);
+
+      state_loop:
+      while (true) {
+        if (!coroutine.scheduler().isRunning(currentCommand)) {
+          // The state's command exited on its own without hitting a transition; move to the next
+          // specified state. If this is null, it will cause the outer loop to exit.
+          currentState = currentState.nextState();
+          break state_loop;
+        } else {
+          // Poll transitions
+          for (var transition : currentState.transitions()) {
+            if (transition.shouldTransition()) {
+              // Cancel the current state's command and move to the next state specified by the
+              // transition. Break the state loop early to avoid an unnecessary yield() call and
+              // allow the next state's command to start in the same loop iteration that the
+              // previous state completed.
+              coroutine.scheduler().cancel(currentCommand);
+              currentState = transition.nextState();
+              break state_loop;
+            }
+          }
+        }
+
+        // Yield after checking all transitions.
+        // Note: this will be skipped if a transition is triggered.
+        coroutine.yield();
+      }
+    }
+  }
+
+  /**
+   * A state in a state machine. Each state has a command that will be run when it is active. States
+   * can transition to other states when some condition is met when that state is active, or
+   * automatically transition to another state when it completes if no transition conditions were
+   * met. A state with no transitions will never transition to another state, and will cause the
+   * state machine to exit when the state completes; likewise, a state with no incoming transitions
+   * will never be active.
+   */
+  public static final class State {
+    /** The state machine that this state belongs to. */
+    private final StateMachine m_stateMachine;
+
+    /** The command that will be run when this state is active. */
+    private final Command m_command;
+
+    /** The state to move to after this one completes normally without hitting a transition. */
+    private State m_nextState;
+
+    /**
+     * The transitions that can be triggered from this state. If multiple transitions are triggered
+     * at once, the first transition in the list will be used.
+     */
+    private final List<Transition> m_transitions = new ArrayList<>();
+
+    private State(StateMachine stateMachine, Command command) {
+      m_stateMachine = stateMachine;
+      m_command = command;
+    }
+
+    Command command() {
+      return m_command;
+    }
+
+    State nextState() {
+      return m_nextState;
+    }
+
+    void setNextState(State nextState) {
+      m_nextState = nextState;
+    }
+
+    List<Transition> transitions() {
+      return m_transitions;
+    }
+
+    void addTransition(Transition transition) {
+      m_transitions.add(transition);
+    }
+
+    /**
+     * Starts building a transition to the specified state.
+     *
+     * @param to The state to transition to. Cannot be null.
+     * @return A builder for the transition.
+     */
+    public NeedsConditionTransitionBuilder switchTo(State to) {
+      requireNonNullParam(to, "to", "State.switchTo");
+      if (!m_stateMachine.equals(to.m_stateMachine)) {
+        throw new IllegalArgumentException(
+            "Cannot transition to a state in a different state machine");
+      }
+      return new NeedsTargetTransitionBuilder(this).to(to);
+    }
+  }
+
+  /**
+   * A builder for a transition from one state to another. Use {@link #to(State)} to specify the
+   * target state to transition to.
+   */
+  // @NoDiscard("Use .to() to specify the target state")
+  public static final class NeedsTargetTransitionBuilder {
+    private final State m_from;
+
+    private NeedsTargetTransitionBuilder(State from) {
+      m_from = from;
+    }
+
+    /**
+     * Specifies the target state to transition to.
+     *
+     * @param to The state to transition to. Cannot be null.
+     * @return A builder to specify the transition condition.
+     */
+    public NeedsConditionTransitionBuilder to(State to) {
+      requireNonNullParam(to, "to", "NeedsTargetTransitionBuilder.to");
+      if (!m_from.m_stateMachine.equals(to.m_stateMachine)) {
+        throw new IllegalArgumentException(
+            "Cannot transition to a state in a different state machine");
+      }
+      return new NeedsConditionTransitionBuilder(m_from, to);
+    }
+  }
+
+  /**
+   * A builder to set conditions for a transition from one state to another. Use {@link
+   * #when(BooleanSupplier)} to make the transition occur when some external condition becomes true,
+   * or use {@link #whenComplete()} to make the transition occur when the originating state
+   * completes without having reached any other transitions first.
+   */
+  // @NoDiscard("Use .when() or .whenComplete() to specify the transition condition")
+  public static final class NeedsConditionTransitionBuilder {
+    private final State m_originatingState;
+    private final State m_targetState;
+
+    private NeedsConditionTransitionBuilder(State from, State to) {
+      m_originatingState = from;
+      m_targetState = to;
+    }
+
+    /**
+     * Adds a transition that will be triggered when the specified condition is true.
+     *
+     * @param condition The condition that will trigger the transition. Cannot be null.
+     */
+    public void when(BooleanSupplier condition) {
+      requireNonNullParam(condition, "condition", "NeedsConditionTransitionBuilder.when");
+      m_originatingState.addTransition(new Transition(m_targetState, condition));
+    }
+
+    /**
+     * Marks the transition when the originating state completes without having reached any other
+     * transitions first.
+     */
+    public void whenComplete() {
+      m_originatingState.setNextState(m_targetState);
+    }
+  }
+
+  private static final class Transition {
+    /** The state to transition to. */
+    private final State m_nextState;
+
+    /** The condition that will trigger the transition. */
+    private final BooleanSupplier m_condition;
+
+    private Transition(State next, BooleanSupplier condition) {
+      m_nextState = next;
+      m_condition = condition;
+    }
+
+    /** Checks if the transition should be triggered. */
+    boolean shouldTransition() {
+      return m_condition.getAsBoolean();
+    }
+
+    State nextState() {
+      return m_nextState;
+    }
+  }
+}

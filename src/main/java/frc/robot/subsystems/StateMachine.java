@@ -27,7 +27,7 @@ public class StateMachine extends Command {
   // THE CONTROL COMMAND OF THE STATE MACHINE
   ///////////////////////////////////////////
   
-  boolean FSMfinished;
+  private boolean FSMfinished;
   /** The initial subroutine of a command. Called once when the command is initially scheduled. */
   public void initialize() {
     // System.out.println("StateMachine initialize");
@@ -80,11 +80,11 @@ private class WrapState extends WrapperCommand {
       // find the immediately preceding transition that got us here using currentTransitionID
       // loop through list of states with their list of transitions
       allTransitions:
-      for (Map.Entry<State, List<Transition>> exits : transitions.entrySet()) {
+      for (Map.Entry<State, List<Transition>> exitsIterate : transitions.entrySet()) {
 
-        for (Transition transition : exits.getValue()) {
+        for (Transition transition : exitsIterate.getValue()) {
           if (transition.transitionID == currentTransitionID) {
-            exits.getKey().stateCommandAugmented.cancel();
+            exitsIterate.getKey().stateCommandAugmented.cancel();
             currentState = transition.nextState; // current state from previous state trigger that got us here
             break allTransitions;
           }
@@ -127,7 +127,7 @@ private class WrapState extends WrapperCommand {
     if (stateCompleted) System.out.println("Wrapper isFinished " + stateCompleted);
     return stateCompleted;
  }
-}
+} // end class WrapState
 
 /////////////////////////////////////
 // "ONE-TIME" SETUP THE STATE MACHINE
@@ -143,9 +143,17 @@ private class WrapState extends WrapperCommand {
   
   boolean stateCompleted;
 
-  public State addInitialState(Command initialStateCommand) { // save initial state command
-    initialState = addState(initialStateCommand);
-    return initialState;
+  public StateMachine(String name) {
+    setName(name);
+  }
+
+    /**
+   * Sets the initial state for the state machine.
+   *
+   * @param initialState The new initial state. Cannot be null.
+   */
+  public void setInitialState(State initialState) {
+    this.initialState = initialState;
   }
 
   public State addState(Command stateCommand) {
@@ -168,20 +176,87 @@ private class WrapState extends WrapperCommand {
       this.stateCommandAugmented = new WrapState(stateCommand);
     }
 
-    public void addTransition(State toNextState, BooleanSupplier whenEvent) { // imply run until the event then transition
-      transitionID++;
-      final int ID = transitionID;
-      exits.add(new Transition(toNextState, ()-> {currentTransitionID = ID; return whenEvent.getAsBoolean();}, transitionID)); // add a transition to the list of this state
-      transitions.put(this, exits); // list of transitions for this state in the master list of all state transitions
-      new Trigger(whenEvent).onTrue(Commands.print("tripped the trigger"));
+    /**
+     * Starts building a transition to the specified state.
+     *
+     * @param to The state to transition to. Cannot be null.
+     * @return A builder for the transition.
+     */
+    public NeedsConditionTransitionBuilder switchTo(State to) {
+      return new NeedsTargetTransitionBuilder(this).to(to);
     }
 
-    public void addTransition(State toNextState) { // imply run until completed then transition
-      transitionID++;
-      final int ID = transitionID;
-      exits.add(new Transition(toNextState, ()-> {currentTransitionID = ID; return stateCompleted;}, transitionID)); // add a transition to the list of this state
-      transitions.put(this, exits); // list of transitions for this state in the master list of all state transitions
-    }
+    /**
+     * A builder for a transition from one state to another. Use {@link #to(State)} to specify the
+     * target state to transition to.
+     */
+    public final class NeedsTargetTransitionBuilder {
+      private final State m_from;
+
+      private NeedsTargetTransitionBuilder(State from) {
+        m_from = from;
+      }
+
+      /**
+       * Specifies the target state to transition to.
+       *
+       * @param to The state to transition to. Cannot be null.
+       * @return A builder to specify the transition condition.
+       */
+      private NeedsConditionTransitionBuilder to(State to) {
+        return new NeedsConditionTransitionBuilder(m_from, to);
+      }
+    } // end class NeedsTargetTransitionBuilder
+
+    /**
+     * A builder to set conditions for a transition from one state to another. Use {@link
+     * #when(BooleanSupplier)} to make the transition occur when some external condition becomes true,
+     * or use {@link #whenComplete()} to make the transition occur when the originating state
+     * completes without having reached any other transitions first.
+     */
+    public final class NeedsConditionTransitionBuilder {
+      private final State m_originatingState;
+      private final State m_targetState;
+
+      private NeedsConditionTransitionBuilder(State from, State to) {
+        m_originatingState = from;
+        m_targetState = to;
+      }
+
+      // /**
+      //  * Adds a transition that will be triggered when the specified condition is true.
+      //  *
+      //  * @param condition The condition that will trigger the transition. Cannot be null.
+      //  */
+      // public void when(BooleanSupplier condition) {
+      //   m_originatingState.addTransition(new Transition(m_targetState, condition));
+      // }
+
+      // /**
+      //  * Marks the transition when the originating state completes without having reached any other
+      //  * transitions first.
+      //  */
+      // public void whenComplete() {
+      //   m_originatingState.setNextState(m_targetState);
+      // }
+
+      // like when
+      public void when/*switchTo*/(BooleanSupplier condition) { // imply run until the event then transition
+        transitionID++;
+        final int ID = transitionID;
+        exits.add(new Transition(m_targetState, ()-> {currentTransitionID = ID; return condition.getAsBoolean();}, transitionID)); // add a transition to the list of this state
+        transitions.put(State.this, exits); // list of transitions for this state in the master list of all state transitions
+        new Trigger(condition).onTrue(Commands.print("tripped the trigger"));
+      }
+
+      // like whenComplete
+      public void whenComplete/*switchTo*/() { // imply run until completed then transition
+        transitionID++;
+        final int ID = transitionID;
+        exits.add(new Transition(m_targetState, ()-> {currentTransitionID = ID; return stateCompleted;}, transitionID)); // add a transition to the list of this state
+        transitions.put(State.this, exits); // list of transitions for this state in the master list of all state transitions
+      }
+    } // end class NeedsConditionTransitionBuilder
   } // end class State
 
   /**
@@ -198,6 +273,9 @@ private class WrapState extends WrapperCommand {
       this.transitionID = transitionID;
     }
   } // end class Transition
+
+    private Command stopFSM = Commands.runOnce(()->FSMfinished = true); // mark FSM to stop to end that running command, too
+    public final State stop = new State(stopFSM); // 
 
   /**
    * Usage:
@@ -216,20 +294,49 @@ private class WrapState extends WrapperCommand {
 
     Command drive_followPath = Commands.deadline(Commands.waitSeconds(1000.), Commands.print("pathing")).finallyDo(()->System.out.println("end pathing"));
     Command scorer_score = Commands.print("scoring").andThen(Commands.waitSeconds(1.)).finallyDo(()->System.out.println("end scoring"));
-    Command leds_celebrate = Commands.print("celebrating").andThen(Commands.waitSeconds(1.)).finallyDo(()->System.out.println("end celebrating"));
+    Command leds_celebrate = Commands.print("celebrating").andThen(Commands.waitSeconds(19.)).finallyDo(()->System.out.println("end celebrating"));
 
-    StateMachine auto = new StateMachine();
+    StateMachine auto = new StateMachine("Example State Machine");
 
-    State pathing = auto.addInitialState(drive_followPath);
+    State pathing = auto.addState(drive_followPath);
     State scoring = auto.addState(scorer_score);
     State celebrating = auto.addState(leds_celebrate);
+    auto.setInitialState(pathing);
 
-    pathing.addTransition(scoring, atScoringLocation);
-    scoring.addTransition(celebrating);
-    celebrating.addTransition(pathing);
+    pathing.switchTo(scoring).when(atScoringLocation);
+    scoring.switchTo(celebrating).whenComplete();
+    celebrating.switchTo(pathing).whenComplete();
+    celebrating.switchTo(auto.stop).when(atScoringLocation);
 
     auto.schedule();
         /* testit results
+refactor chained build work in progress not right yet
+ - note that the test case was changed so results should be different but t his isn't right, I think.
+StateMachine
+pathing
+tripped the trigger
+tripped the trigger
+wrapper end interrupt true
+end pathing
+scoring
+Wrapper isFinished true
+wrapper end interrupt false
+end scoring
+celebrating
+tripped the trigger
+tripped the trigger
+wrapper end interrupt true
+end celebrating
+Wrapper isFinished true
+wrapper end interrupt false
+tripped the trigger
+tripped the trigger
+
+
+
+
+
+previous good
         StateMachine
         pathing
         tripped the trigger
@@ -244,7 +351,7 @@ private class WrapState extends WrapperCommand {
         wrapper end interrupt false
         end celebrating
         */    
-  }
+  } // end method FSMtest
 } // end class StateMachine
 
 /* Sam C. specification
