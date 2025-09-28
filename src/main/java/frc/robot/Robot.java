@@ -208,13 +208,13 @@ package frc.robot;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import frc.robot.subsystems.StateMachine;
 
 public class Robot extends TimedRobot {
   private RobotContainer m_robotContainer = new RobotContainer();
   private Command m_autonomousSignal;
 
   public Robot() {
+    // super(0.2); // default 0.02
     CommandsTriggers.create(m_robotContainer);
   }
 
@@ -244,10 +244,10 @@ public class Robot extends TimedRobot {
   public void autonomousInit() {
   
     // Commands running from another mode haven't been cancelled directly but may be interrupted by
-    // this command.
+    // these commands.
+    CommandsTriggers.setStateMachine().schedule();
     m_autonomousSignal = CommandsTriggers.setAutonomousSignal();
     m_autonomousSignal.schedule();
-    StateMachine.FSMtest();
   }
 
   @Override

@@ -25,6 +25,7 @@ import frc.robot.subsystems.GroupDisjointSequenceTest;
 import frc.robot.subsystems.HistoryFSM;
 import frc.robot.subsystems.Intake;
 import frc.robot.subsystems.RobotSignals;
+import frc.robot.subsystems.StateMachine;
 import frc.robot.subsystems.RobotSignals.LEDPatternSupplier;
 
 public abstract class CommandsTriggers {
@@ -36,6 +37,7 @@ public abstract class CommandsTriggers {
   private static Optional<Boolean>           m_triggerNextCommand;
   private static Optional<HistoryFSM>        m_historyFSM;
   private static Optional<Intake>            m_intake;
+  private static Optional<Boolean>           m_UseStateMachine;
   private static Optional<Boolean>           m_UseAutonomousSignal;
   private static Optional<Boolean>           m_UseColorWheel;
   private static Optional<Boolean>           m_UseMainDefault;
@@ -54,6 +56,7 @@ public abstract class CommandsTriggers {
     m_triggerNextCommand = robotContainer.getM_triggerNextCommand();
     m_historyFSM = robotContainer.getM_historyFSM();
     m_intake = robotContainer.getM_intake();
+    m_UseStateMachine = robotContainer.getM_stateMachine();
     m_UseAutonomousSignal = robotContainer.getM_autonomousSignal();
     m_UseColorWheel = robotContainer.getM_useColorWheel();
     m_UseMainDefault = robotContainer.getM_useMainDefault();
@@ -166,6 +169,24 @@ public abstract class CommandsTriggers {
   }
 
   /**
+   * Create a command to start the StateMachine test
+   *
+   * @return command that can be scheduled to start the State Machine
+   */
+  @SuppressWarnings("resource")
+  public static Command setStateMachine() {
+    if (m_UseStateMachine.isPresent()) {
+        // statements before the return are run early at initialization time
+      return
+          runOnce(()->StateMachine.FSMtest())
+          .withName("StateMachine");
+    }
+    else {
+      return runOnce(()-> new Alert("Autonomous Signal not selected", AlertType.kWarning).set(true));
+    }
+  }
+
+/**
    * Create a command to signal Autonomous mode
    *
    * <p>Example of setting two signals by contrived example of composed commands

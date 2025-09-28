@@ -1,5 +1,13 @@
 package frc.robot;
 
+import java.lang.invoke.MethodHandles;
+import java.util.Optional;
+
+import edu.wpi.first.wpilibj.Alert;
+import edu.wpi.first.wpilibj.Alert.AlertType;
+import edu.wpi.first.wpilibj.util.Color;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+
 /**
  * Create subsystems, define command logging, manage the details of what is
  * periodically processed before and after the command scheduler loop - everything
@@ -14,18 +22,10 @@ import frc.robot.subsystems.MooreLikeFSM;
 import frc.robot.subsystems.MooreLikeFSMMultiCommand;
 import frc.robot.subsystems.RobotSignals;
 
-import edu.wpi.first.wpilibj.Alert;
-import edu.wpi.first.wpilibj.Alert.AlertType;
-import edu.wpi.first.wpilibj.util.Color;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-
-import java.lang.invoke.MethodHandles;
-import java.util.Optional;
-
 public class RobotContainer {
 
   //FIXME options to select desired demonstrations
-  private boolean allExamples                  = false;
+  private boolean allExamples                  = true;
   private boolean useAchieveHueGoal            = false || allExamples;
   private boolean useGroupDisjointSequenceTest = false || allExamples;
   private boolean useGroupDisjointParallelTest = false || allExamples;
@@ -34,6 +34,7 @@ public class RobotContainer {
   private boolean useIntake                    = false || allExamples;
   private boolean useMooreLikeFSM              = false || allExamples;
   private boolean useMooreLikeFSMMultiCommand  = false || allExamples;
+  private boolean useStateMachine_FSM          = false  || allExamples;
   private boolean useAutonomousSignal          = false || allExamples;
   private boolean useColorWheel                = false || allExamples;
   private boolean useMainDefault               = false || allExamples;
@@ -97,6 +98,11 @@ public class RobotContainer {
   private Optional<MooreLikeFSMMultiCommand> m_mooreLikeFSMMultiCommand = useMooreLikeFSMMultiCommand ? Optional.of(new MooreLikeFSMMultiCommand(m_robotSignals.m_imposter, 9.9, Color.kOrange)) : Optional.empty();
   public Optional<MooreLikeFSMMultiCommand> getM_mooreLikeFSMMultiCommand() {
     return m_mooreLikeFSMMultiCommand;
+  }
+
+  private Optional<Boolean> m_stateMachine = useStateMachine_FSM ? Optional.of(true) : Optional.empty();
+  public Optional<Boolean> getM_stateMachine() {
+    return m_stateMachine;
   }
 
   private Optional<Boolean> m_autonomousSignal = useAutonomousSignal ? Optional.of(true) : Optional.empty();
