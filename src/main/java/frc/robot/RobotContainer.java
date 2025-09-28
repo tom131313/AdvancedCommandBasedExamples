@@ -25,7 +25,7 @@ import java.util.Optional;
 public class RobotContainer {
 
   //FIXME options to select desired demonstrations
-  private boolean allExamples                  = true;
+  private boolean allExamples                  = false;
   private boolean useAchieveHueGoal            = false || allExamples;
   private boolean useGroupDisjointSequenceTest = false || allExamples;
   private boolean useGroupDisjointParallelTest = false || allExamples;
@@ -40,7 +40,7 @@ public class RobotContainer {
   private boolean useEnableDisable             = false || allExamples;
 
   //FIXME options for logging
-  private boolean useConsole            = false;
+  private boolean useConsole            = true;
   private boolean useDataLog            = true;
   private boolean useShuffleBoardLog    = false;
 
