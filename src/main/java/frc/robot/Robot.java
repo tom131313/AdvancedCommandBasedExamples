@@ -1,7 +1,7 @@
 /*
  * Example program that shows a variety of command based and programming "best practices."
  * 
- * Includes six different techniques useful in Command-Based programming. In addition all of the
+ * Includes seven different techniques useful in Command-Based programming. In addition all of the
  * examples are written in a similar suggested style of handling commands and triggers with
  * suggested variable naming style and minimal scope.
  *  1. Goal-Oriented subsystem to feed setpoints to a command-scheduled control calculation. (PID
@@ -14,15 +14,18 @@
  *  5. Use of "proxies" to disjoint composed groups such that a subsystem default command may run
  *     within a group instead of the normal behavior of being blocked until the group completes.
  *     (Simple subsystems running commands and default commands concurrently in groups)
- *  6. Example of using a Moore-like FSM structure using an input state and a triggering event to
+ *  6. Examples of using a Moore-like FSM structure using an input state and a triggering event to
  *     transition to a new state.
+ *  7. Another example of using a Moore-like FSM structure using easy-to-use methods to define the
+ *     StateMachine class usage. It is similar in appearance to the Command-Based V3 StateMachine.
+ *     (The underlying V3 code bears little resemblance to this V2 based operation.)
  *
- * Because all but one demonstration uses an addressable LED strip as output (one has console
+ * Because all but two demonstrations uses an addressable LED strip as output (two have console
  * output) there is significant overlap and depth in demonstrating style of using the 2025 advanced
  * addressable LED classes and methods.
  * 
  * Demonstration output is on seven sets of eight identical LEDs to show the program is operating;
- * operator input is Xbox controller. The eighth demonstration output is the terminal console
+ * operator input is Xbox controller. The other demonstrations outputs are the terminal console
  * "prints."
  *
  * 1. LED set 1 usage Top LEDView subsystem default blue.
@@ -74,6 +77,8 @@
  *  commands structure. Optionally in code the disjoint can be by triggers
  *  (TriggeredDisjointSequenceGroup).
  * 
+ *  9. Console Terminal usage for the Moore-like StateMachine (like V3).
+ * 
  *  TriggeredDisjointParallelGroup demo is somewhat similar to the TriggeredDisjointSequenceGroup
  *  and is activated by entering test mode.
  * 
@@ -123,6 +128,7 @@
  * Use of a reusable Moore-Like FSM structure of current state, trigger, new state transitions.
  * Use of a perpetually running command to accept "goals".
  * Use of Alerts.
+ * Preview of the StateMachine class usage in Command-Based V3
  */
 
 /*

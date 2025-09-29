@@ -23,7 +23,7 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 // @SuppressWarnings("unused") //FIXME remove
 /**
  * Example of a Finite State Machine (FSM) using simple methods to build the FSM from those utility
- * class.
+ * class. Based on the user-facing appearance of Command-Based V3 (as of 9/2025).
  * 
  * <p>This code has incomplete validation to prevent really bad parameters such as inappropriate nulls.
  * 
@@ -241,11 +241,11 @@ public class StateMachine extends Command {
      * completes without having reached any other transitions first.
      */
     public final class NeedsConditionTransitionBuilder {
-      private final State m_originatingState;
+      // private final State m_originatingState;
       private final State m_targetState;
 
       private NeedsConditionTransitionBuilder(State from, State to) {
-        m_originatingState = from;
+        // m_originatingState = from;
         m_targetState = to;
       }
 
