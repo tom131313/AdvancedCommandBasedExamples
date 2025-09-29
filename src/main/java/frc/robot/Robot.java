@@ -220,7 +220,7 @@ public class Robot extends TimedRobot {
   private Command m_autonomousSignal;
 
   public Robot() {
-    // super(0.2); // default 0.02
+    super(0.2); // default 0.02
     CommandsTriggers.create(m_robotContainer);
   }
 
