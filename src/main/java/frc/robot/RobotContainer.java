@@ -34,14 +34,14 @@ public class RobotContainer {
   private boolean useIntake                    = false || allExamples;
   private boolean useMooreLikeFSM              = false || allExamples;
   private boolean useMooreLikeFSMMultiCommand  = false || allExamples;
-  private boolean useStateMachine_FSM          = false  || allExamples;
+  private boolean useStateMachine_FSM          = false || allExamples;
   private boolean useAutonomousSignal          = false || allExamples;
   private boolean useColorWheel                = false || allExamples;
   private boolean useMainDefault               = false || allExamples;
   private boolean useEnableDisable             = false || allExamples;
 
   //FIXME options for logging
-  private boolean useConsole            = true;
+  private boolean useConsole            = false;
   private boolean useDataLog            = true;
   private boolean useShuffleBoardLog    = false;
 

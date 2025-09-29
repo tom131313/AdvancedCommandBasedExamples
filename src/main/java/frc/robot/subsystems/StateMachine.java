@@ -3,9 +3,7 @@ package frc.robot.subsystems;
 import static edu.wpi.first.units.Units.Seconds;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.BooleanSupplier;
 
 import edu.wpi.first.units.measure.Time;
@@ -20,7 +18,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.WrapperCommand;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 
-// @SuppressWarnings("unused") //FIXME remove
+// @SuppressWarnings("unused")
 /**
  * Example of a Finite State Machine (FSM) using simple methods to build the FSM from those utility
  * class. Based on the user-facing appearance of Command-Based V3 (as of 9/2025).
@@ -39,27 +37,25 @@ public class StateMachine extends Command {
   /////////////////////////////////////
   // "ONE-TIME" SETUP THE STATE MACHINE
   /////////////////////////////////////
-  public String name;
+  private String name;
   private class FSMsubsystem extends SubsystemBase {}
   private final SubsystemBase FSMrequirements = new FSMsubsystem();
   private boolean FSMfinished;
   private EventLoop events = new EventLoop();
-  public List<State> states = new ArrayList<State>(); // All the states only needed for diagnostic purposes - not in the logical flow
-  // each State will have 0 to many transitions added by the user
-  //FIXME delete transitions - it's redundant
-  private Map<State, List<Transition>> transitions = new HashMap<State, List<Transition>>(); // All the States and their transitions of the FSM
-  private int transitionID = 0;
-  private State initialState;
+  private List<State> states = new ArrayList<State>(); // All the states users instantiate (and STOP) only needed for printing the StateMachine - not in the logical flow
+  private int transitionID = 0; // unique sequence number for debugging only needed for printing the StateMachine - not in the logical flow
+  private State initialState; // user must call setInitialState or runtime fails with this null pointer
   private State completedNormally = null; // used for transition trigger whenComplete
   private final Command stopFSM = Commands.print("stopping FSM").andThen(Commands.runOnce(()->FSMfinished = true)); // mark FSM to stop to end that running command, too
   public final State stop = new State("stopped state", stopFSM);
+  
   public StateMachine(String name) {
     this.name = name;
     stopFSM.setName("State Machine Stopped");
   }
 
   /**
-   * Sets the initial state for the state machine.
+   * Required to set the initial state or runtime fails with a null pointer.
    *
    * @param initialState The new initial state. Cannot be null.
    */
@@ -85,7 +81,7 @@ public class StateMachine extends Command {
       System.out.println("-------" + state.name + "-------");
 
       // loop through all the transitions of this state
-      for (Transition transition : state.exits) {
+      for (Transition transition : state.transitions) {
         noExits = false; // at least one transition out of this state
         System.out.println("transition " + transition.transitionID + " "
         + transition + " to " + transition.nextState.name + " with trigger " + transition.triggeringEvent);
@@ -94,7 +90,7 @@ public class StateMachine extends Command {
       // loop through all the states again to find at least one entrance to this state
       allStates:
       for (State stateInner : states) {
-        for (Transition transition : stateInner.exits) {
+        for (Transition transition : stateInner.transitions) {
           if (transition.nextState == state) {
             noEntrances = false;
             break allStates;
@@ -120,16 +116,21 @@ public class StateMachine extends Command {
   }
 
   /** The main body of a command. Called repeatedly while the command is scheduled. */
+  @Override
   public void execute() {
-    events.poll();
+    events.poll(); // check for events that can trigger transitions out of this state
   }
 
   /**
+   * This method overrides the super just so it can print the message for debugging.
+   * If the message is no longer needed, then this entire method should be removed.
+   * 
    * The action to take when the command ends. Called when either the command finishes normally, or
    * when it interrupted/canceled.
 
    * @param interrupted whether the command was interrupted/canceled
    */
+  @Override
   public void end(boolean interrupted) {
     System.out.println("StateMachine end interrupted " + interrupted);
   }
@@ -140,6 +141,7 @@ public class StateMachine extends Command {
    *
    * @return whether the command has finished.
    */
+  @Override
   public boolean isFinished() {
     return FSMfinished;
   }
@@ -147,12 +149,16 @@ public class StateMachine extends Command {
   /////////////////////////////////////
   // RUN THE WRAPPED STATES AS COMMANDS
   /////////////////////////////////////
-
+  /**
+   * Wrap a command to define the state.
+   * <p>The wrapper creates the event triggers that will change to the next state
+   * and remember if the state command ended normally without interruption.
+   */
   private class WrapState extends WrapperCommand {
     State state;
     
     WrapState(State state, Command command) {
-      super(command); // should be state command to run at this time
+      super(command); // user's original state command to run
       this.state = state;
       command.addRequirements(FSMrequirements); // lets scheduler cancel conflicting requirements - only one state may run at a time
     }
@@ -167,19 +173,18 @@ public class StateMachine extends Command {
       events.clear(); // wipe the previous state's triggers
       System.out.println("state requiring FSMrequirements " + CommandScheduler.getInstance().requiring(FSMrequirements).getName());
 
-      // make triggers for all of this current state's transitions
-      var stateTransitions = transitions.get(state); // get the list of transitions for this State
-      if (stateTransitions != null) { // if it is null then command will end (we are hopeful) with no exit transitions 
-        for (Transition transition : stateTransitions) { //  add all the events for this state
+      // make triggers for all of the current state's transitions
+      if (state.transitions == null) {
+        System.out.println("no transitions from state " + state.name);
+      }
+      else {
+        for (Transition transition : state.transitions) { //  add all the events for this state
           new Trigger (events, transition.triggeringEvent)
             .onTrue(transition.nextState.stateCommandAugmented);
           System.out.println(state.name + " made exit trigger from " + transition.transitionID);
         }
       }
-      else {
-        System.out.println("no transitions from state " + state.name);
-      }
-      
+
       completedNormally = null; // reset for this new state
 
       m_command.initialize(); // Wrapper is done with its fussing so tell original command to initialize
@@ -198,11 +203,13 @@ public class StateMachine extends Command {
     }
 
     /**
-      * Whether the command has finished. Once a command finishes, the scheduler will call its end()
-      * method and un-schedule it.
-      *
-      * @return whether the command has finished.
-      */
+     * This method overrides the super just so it can print the message for debugging.
+     * If the message is no longer needed, then this entire method should be removed.
+     * 
+     * Once a command finishes, the scheduler will call its end() method and un-schedule it.
+     *
+     * @return whether the command has finished.
+     */
     @Override
     public boolean isFinished() {
       var completed = m_command.isFinished(); // check original command finished by itself or not, remember that and pass that along
@@ -220,7 +227,7 @@ public class StateMachine extends Command {
   {
     private final String name;
     Command stateCommandAugmented; // the Wrapped (instrumented) state command that will actually be run
-    List<Transition> exits = new ArrayList<Transition>(); // the transitions for this State
+    List<Transition> transitions = new ArrayList<Transition>(); // the transitions for this State
 
     /**
      * creating a new State from a command
@@ -287,8 +294,7 @@ public class StateMachine extends Command {
       public void when(BooleanSupplier condition) { // imply run until the event then transition
         transitionID++;
         final int ID = transitionID;
-        exits.add(new Transition(m_targetState, condition, ID)); // wrap condition and add to the list a transition to this state
-        transitions.put(State.this, exits); // list of transitions for this state in the master list of all state transitions
+        transitions.add(new Transition(m_targetState, condition, ID)); // wrap condition and add to the list a transition to this state
         new Trigger(condition).onTrue(Commands.print("debug external tripped the trigger " + ID)); // debugging only
       }
 
@@ -300,8 +306,7 @@ public class StateMachine extends Command {
         BooleanSupplier condition = ()-> State.this == completedNormally;
         transitionID++;
         final int ID = transitionID;
-        exits.add(new Transition(m_targetState, condition, ID)); // wrap condition and add to the list a transition to this state
-        transitions.put(State.this, exits); // list of transitions for this state in the master list of all state transitions
+        transitions.add(new Transition(m_targetState, condition, ID)); // wrap condition and add to the list a transition to this state
         new Trigger(condition).onTrue(Commands.print("debug check state completed tripped the trigger " + ID)); // debugging only
       }
     } // end class NeedsConditionTransitionBuilder
@@ -370,15 +375,16 @@ public class StateMachine extends Command {
 
   /**
    * Usage:
-   * Because of the Digital Input resource is allocated herein without closing it, this
+   * <p>Because of the Digital Input resource is allocated herein without closing it, this
    * test case method can not be rescheduled without restarting the program. Normal usage would
    * be the triggering resources would be more independent of the StateMachine.
    * <pre><code>
-    StateMachine.testit();
+    StateMachine.FSMtest();
     </code></pre>
    * Change the state of Digital Input 0 (0, 1, 0, 1, 0, etc.) to indicate atScoringPosition and
    * state changes from pathing to scoring. Changes of states scoring and celebrating are automatic
-   * when those states end when their functions are completed. 
+   * when those states end when their functions are completed. Celebrating can be forced to STOP
+   * with the same Digital Input 0 (crude but easy and effective for a simple test method).
    */
   public static void FSMtest() {
     System.out.println("StateMachine");
@@ -395,7 +401,7 @@ public class StateMachine extends Command {
     State pathing = auto.addState("pathing state", drive_followPath);
     State scoring = auto.addState("scoring state", scorer_score);
     State celebrating = auto.addState("celebrating state", leds_celebrate);
-    State testState = auto.addState("junk", Commands.none());
+    State testState = auto.addState("junk", Commands.none()); // testing unused state report
     
     auto.setInitialState(pathing);
 
@@ -478,7 +484,7 @@ celebrating state made exit trigger from 4
  initializingCelebrateCommand
 Command initialized : WrapState/CelebrateCommand {FSMsubsystem}
  execute CelebrateCommandCommand executed : WrapState/CelebrateCommand
- execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommandDataLog: Renamed log file from 'FRC_TBD_7dc6a5943da22d78.wpilog' to 'FRC_20250929_144837.wpilog'
+ execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand
  execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommandWrapper isFinished; everything completed normally true
  ending CelebrateCommand interrupted false
 wrapper end by interrupt false
