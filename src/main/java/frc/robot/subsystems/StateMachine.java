@@ -37,6 +37,9 @@ public class StateMachine extends Command {
   /////////////////////////////////////
   // "ONE-TIME" SETUP THE STATE MACHINE
   /////////////////////////////////////
+  
+  private final boolean debug = false; // activate debug prints to terminal
+
   private String name;
   private class FSMsubsystem extends SubsystemBase {}
   private final SubsystemBase FSMrequirements = new FSMsubsystem();
@@ -46,12 +49,17 @@ public class StateMachine extends Command {
   private int transitionID = 0; // unique sequence number for debugging only needed for printing the StateMachine - not in the logical flow
   private State initialState; // user must call setInitialState or runtime fails with this null pointer
   private State completedNormally = null; // used for transition trigger whenComplete
-  private final Command stopFSM = Commands.print("stopping FSM").andThen(Commands.runOnce(()->FSMfinished = true)); // mark FSM to stop to end that running command, too
-  public final State stop = new State("stopped state", stopFSM);
+  private final Command stopFSM; // command that may be used to stop the FSM
+  private final Command stopFSMprint = Commands.print("stopping FSM").andThen(Commands.runOnce(()->FSMfinished = true)); // mark FSM to stop to end that running command
+  private final Command stopFSMnoPrint = Commands.runOnce(()->FSMfinished = true); // mark FSM to stop to end that running command
+  public final State stop;
   
   public StateMachine(String name) {
     this.name = name;
+    if(debug) stopFSM = stopFSMprint;
+    else stopFSM = stopFSMnoPrint;
     stopFSM.setName("State Machine Stopped");
+    stop = new State("stopped state", stopFSM);
   }
 
   /**
@@ -132,7 +140,7 @@ public class StateMachine extends Command {
    */
   @Override
   public void end(boolean interrupted) {
-    System.out.println("StateMachine end interrupted " + interrupted);
+    if (debug) System.out.println("StateMachine end interrupted " + interrupted);
   }
 
   /**
@@ -171,17 +179,17 @@ public class StateMachine extends Command {
     @Override
     public void initialize() {
       events.clear(); // wipe the previous state's triggers
-      System.out.println("state requiring FSMrequirements " + CommandScheduler.getInstance().requiring(FSMrequirements).getName());
+      if(debug) System.out.println("state requiring FSMrequirements " + CommandScheduler.getInstance().requiring(FSMrequirements).getName());
 
       // make triggers for all of the current state's transitions
       if (state.transitions == null) {
-        System.out.println("no transitions from state " + state.name);
+        if(debug) System.out.println("no transitions from state " + state.name);
       }
       else {
         for (Transition transition : state.transitions) { //  add all the events for this state
           new Trigger (events, transition.triggeringEvent)
             .onTrue(transition.nextState.stateCommandAugmented);
-          System.out.println(state.name + " made exit trigger from " + transition.transitionID);
+          if(debug) System.out.println(state.name + " made exit trigger from " + transition.transitionID);
         }
       }
 
@@ -198,7 +206,7 @@ public class StateMachine extends Command {
     @Override
     public void end(boolean interrupted) {
       m_command.end(interrupted); // tell original command to end and if this wrapper was interrupted or not
-      System.out.println("wrapper end by interrupt " + interrupted);
+      if(debug) System.out.println("wrapper end by interrupt " + interrupted);
       if (!interrupted) completedNormally = state; // indicate state ended by itself without others help
     }
 
@@ -214,7 +222,7 @@ public class StateMachine extends Command {
     public boolean isFinished() {
       var completed = m_command.isFinished(); // check original command finished by itself or not, remember that and pass that along
       if (completed) {
-        System.out.println("Wrapper isFinished; everything completed normally " + completed);
+        if(debug) System.out.println("Wrapper isFinished; everything completed normally " + completed);
       }
       return completed; // Wrapper follows underlying command
     }
@@ -295,7 +303,7 @@ public class StateMachine extends Command {
         transitionID++;
         final int ID = transitionID;
         transitions.add(new Transition(m_targetState, condition, ID)); // wrap condition and add to the list a transition to this state
-        new Trigger(condition).onTrue(Commands.print("debug external tripped the trigger " + ID)); // debugging only
+        if(debug) new Trigger(condition).onTrue(Commands.print("debug external tripped the trigger " + ID));
       }
 
       /**
@@ -307,7 +315,7 @@ public class StateMachine extends Command {
         transitionID++;
         final int ID = transitionID;
         transitions.add(new Transition(m_targetState, condition, ID)); // wrap condition and add to the list a transition to this state
-        new Trigger(condition).onTrue(Commands.print("debug check state completed tripped the trigger " + ID)); // debugging only
+        if(debug) new Trigger(condition).onTrue(Commands.print("debug check state completed tripped the trigger " + ID));
       }
     } // end class NeedsConditionTransitionBuilder
   } // end class State
