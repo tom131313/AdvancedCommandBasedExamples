@@ -199,7 +199,6 @@ public class RobotContainer {
     m_groupDisjointSequenceTest.ifPresent((x)->x.runBeforeCommands());
     m_historyFSM               .ifPresent((x)->x.runBeforeCommands());
     m_intake                   .ifPresent((x)->x.runBeforeCommands());
-    m_mooreLikeFSM             .ifPresent((x)->x.runBeforeCommands());
     m_mooreLikeFSMMultiCommand .ifPresent((x)->x.runBeforeCommands());
     m_robotSignals                              .runBeforeCommands();
   }
@@ -215,7 +214,6 @@ public class RobotContainer {
     m_groupDisjointSequenceTest.ifPresent((x)->x.runAfterCommands());
     m_historyFSM               .ifPresent((x)->x.runAfterCommands());
     m_intake                   .ifPresent((x)->x.runAfterCommands());
-    m_mooreLikeFSM             .ifPresent((x)->x.runAfterCommands());
     m_mooreLikeFSMMultiCommand .ifPresent((x)->x.runAfterCommands());
     m_robotSignals                              .runAfterCommands();
   }

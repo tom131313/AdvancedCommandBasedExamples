@@ -251,6 +251,7 @@ public class Robot extends TimedRobot {
   
     // Commands running from another mode haven't been cancelled directly but may be interrupted by
     // these commands.
+    // m_robotContainer.getM_mooreLikeFSM().get().lightBar.schedule(); // example if not running disabled as in the example test case in the class
     CommandsTriggers.setStateMachine().schedule();
     m_autonomousSignal = CommandsTriggers.setAutonomousSignal();
     m_autonomousSignal.schedule();

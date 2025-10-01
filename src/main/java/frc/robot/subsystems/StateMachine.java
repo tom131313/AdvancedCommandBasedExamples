@@ -20,8 +20,15 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 // @SuppressWarnings("unused")
 /**
+ * WARNING: Commands defining states using method "ignoringDisabled()" must have the requirement of
+ * "`your enclosing instance of StateMachine`.requirement"
+ * 
  * Example of a Finite State Machine (FSM) using simple methods to build the FSM from those utility
  * class. Based on the user-facing appearance of Command-Based V3 (as of 9/2025).
+ * <p>This is essentially the same as typical coding of Triggers with conditions and onTrue commands.
+ * The benefit of this FSM implementation is not so much changing the names of the two methods but
+ * the state changing triggers exist only for the duration of the state instead of being a perpetual
+ * part of the huge mass of triggers for the robot code.
  * 
  * <p>Command-Based classes are used to wrap the users commands and triggers in order to define the
  * FSM "cyclic" behavior.
@@ -42,24 +49,18 @@ public class StateMachine extends Command {
 
   private String name;
   private class FSMsubsystem extends SubsystemBase {}
-  private final SubsystemBase FSMrequirements = new FSMsubsystem();
+  public final SubsystemBase requirement = new FSMsubsystem();
   private boolean FSMfinished;
   private EventLoop events = new EventLoop();
   private List<State> states = new ArrayList<State>(); // All the states users instantiate (and STOP) only needed for printing the StateMachine - not in the logical flow
   private int transitionID = 0; // unique sequence number for debugging only needed for printing the StateMachine - not in the logical flow
   private State initialState; // user must call setInitialState or runtime fails with this null pointer
   private State completedNormally = null; // used for transition trigger whenComplete
-  private final Command stopFSM; // command that may be used to stop the FSM
-  private final Command stopFSMprint = Commands.print("stopping FSM").andThen(Commands.runOnce(()->FSMfinished = true)); // mark FSM to stop to end that running command
-  private final Command stopFSMnoPrint = Commands.runOnce(()->FSMfinished = true); // mark FSM to stop to end that running command
   public final State stop;
-  
+
   public StateMachine(String name) {
     this.name = name;
-    if(debug) stopFSM = stopFSMprint;
-    else stopFSM = stopFSMnoPrint;
-    stopFSM.setName("State Machine Stopped");
-    stop = new State("stopped state", stopFSM);
+    stop = addState("stopped state", new Stopper());
   }
 
   /**
@@ -82,7 +83,6 @@ public class StateMachine extends Command {
     System.out.println("All states for StateMachine " + name);
     
     for (State state : states) {
-
       boolean noExits = true; // initially haven't found any
       boolean noEntrances = true; // initially haven't found any
 
@@ -141,6 +141,11 @@ public class StateMachine extends Command {
   @Override
   public void end(boolean interrupted) {
     if (debug) System.out.println("StateMachine end interrupted " + interrupted);
+    // the StateMachine manager is stopping so cancel the State command if it's still running
+    var activeState = requirement.getCurrentCommand();
+    if (activeState != null) {
+      activeState.cancel();
+    }
   }
 
   /**
@@ -168,7 +173,6 @@ public class StateMachine extends Command {
     WrapState(State state, Command command) {
       super(command); // user's original state command to run
       this.state = state;
-      command.addRequirements(FSMrequirements); // lets scheduler cancel conflicting requirements - only one state may run at a time
     }
 
     /**
@@ -179,7 +183,7 @@ public class StateMachine extends Command {
     @Override
     public void initialize() {
       events.clear(); // wipe the previous state's triggers
-      if(debug) System.out.println("state requiring FSMrequirements " + CommandScheduler.getInstance().requiring(FSMrequirements).getName());
+      if(debug) System.out.println("state requiring StateMachine requirements " + CommandScheduler.getInstance().requiring(requirement).getName());
 
       // make triggers for all of the current state's transitions
       if (state.transitions == null) {
@@ -243,7 +247,9 @@ public class StateMachine extends Command {
      */
     private State(String name, Command stateCommand) {
       this.name = name;
+      // stateCommand.addRequirements(FSMrequirements); // lets scheduler cancel conflicting requirements - only one state may run at a time
       StateMachine.this.states.add(this);
+      stateCommand.addRequirements(requirement); // doesn't work for ignoreDisabled wrapper; requirement must be added before that usage
       this.stateCommandAugmented = new WrapState(this, stateCommand);
     }
 
@@ -336,6 +342,32 @@ public class StateMachine extends Command {
   } // end class Transition
 
   /**
+   * Stop the StateMachine Command that does nothing except help define a stopped state. (The user
+   * may provide any state desired that has no exits and the command ends normally to be the stop
+   * state.)
+   */
+  private class Stopper extends Command {
+    private Stopper() {
+      setName("State Machine Stopper");
+      addRequirements(StateMachine.this.requirement);
+    }
+
+    @Override
+    public boolean runsWhenDisabled() {
+      return true;
+    }
+
+    @Override
+    public void initialize() {
+      FSMfinished = true;
+    }
+    @Override
+    public boolean isFinished() {
+      return true;
+    }
+  }
+
+  /**
    * Command Factory for testing StateMachine
    * 
    * Using this syntax is slightly easier to read than using "new TestDuration()".
@@ -413,8 +445,8 @@ public class StateMachine extends Command {
     
     auto.setInitialState(pathing);
 
-    // any state that does not have exit transitions will be a "stop" state. This "auto.stop" is
-    // provided as a convenience and is not required to be used.
+    // Any state that does not have an exit transition is a sort of "stop" state. This "auto.stop"
+    // is provided as a convenience and will stop both itself and stop the StateMachine command.
     celebrating.switchTo(auto.stop).when(atScoringLocation);
     pathing.switchTo(scoring).when(atScoringLocation);
     scoring.switchTo(celebrating).whenComplete();
