@@ -80,18 +80,12 @@ public class MooreLikeFSM {
     lightBar.ignoringDisable(true).schedule(); // This FSM runs also disabled so start it immediately.
     //  If the FSM doesn't run disabled, then start it in auto or periodic init with
     // m_robotContainer.getM_mooreLikeFSM().get().lightBar.schedule();
-
-    // example doesn't work to restart StateMachine. It does cancel but then fails to schedule
-    // could try to restructure have createLightBar public and return a Command
-    try {
-      Thread.sleep(10000);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
     //FIXME scanner doesn't appear to stop but a second createLightBar does print out the state machine
-    lightBar.cancel();
-    lightBar = createLightBar();
-    lightBar.ignoringDisable(true).schedule();
+
+    Commands.waitSeconds(10.)
+      .andThen(Commands.runOnce(()-> lightBar.cancel())).ignoringDisable(true).andThen(Commands.waitSeconds(5.))
+      .andThen(Commands.runOnce(()->{lightBar = createLightBar(); lightBar.ignoringDisable(true).schedule();}))
+      .ignoringDisable(true).schedule();
   }
 
   /**
@@ -187,8 +181,7 @@ public class MooreLikeFSM {
             LEDPattern currentStateSignal = oneLEDSmeared(state.ordinal(), m_color, Color.kBlack);
             m_robotSignals.setSignal(currentStateSignal).schedule();
             SmartDashboard.putString("FSM steady-state action "+this, state.name());
-          },
-          lightBar.requirement)
+          })
         .ignoringDisable(true)
         .withName("Moore-Like " + m_color + " " + state); // "this" is more precise discriminator
                                                   // but "m_color" is prettier and likely as good

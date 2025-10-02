@@ -204,7 +204,7 @@
  */
 
 /*
- * Warning:
+ * Caution:
  * 
  * WPILib examples often have a cancelAll() for commands. This program uses a perpetually running
  * command for one example and cancelling that command is fatal for that controller example.

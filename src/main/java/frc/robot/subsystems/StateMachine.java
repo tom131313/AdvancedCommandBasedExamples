@@ -11,18 +11,13 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.event.EventLoop;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.ScheduleCommand;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.WrapperCommand;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 // @SuppressWarnings("unused")
 /**
- * WARNING: Commands defining states using method "ignoringDisabled()" must have the requirement of
- * "`your enclosing instance of StateMachine`.requirement"
- * 
  * Example of a Finite State Machine (FSM) using simple methods to build the FSM from those utility
  * class. Based on the user-facing appearance of Command-Based V3 (as of 9/2025).
  * <p>This is essentially the same as typical coding of Triggers with conditions and onTrue commands.
@@ -48,8 +43,6 @@ public class StateMachine extends Command {
   private final boolean debug = false; // activate debug prints to terminal
 
   private String name;
-  private class FSMsubsystem extends SubsystemBase {}
-  public final SubsystemBase requirement = new FSMsubsystem();
   private boolean FSMfinished;
   private EventLoop events = new EventLoop();
   private List<State> states = new ArrayList<State>(); // All the states users instantiate (and STOP) only needed for printing the StateMachine - not in the logical flow
@@ -57,6 +50,7 @@ public class StateMachine extends Command {
   private State initialState; // user must call setInitialState or runtime fails with this null pointer
   private State completedNormally = null; // used for transition trigger whenComplete
   public final State stop;
+  private Command stateCommandAugmentedPrevious = null; // need to know if previous is still running so can be cancelled on state transition
 
   public StateMachine(String name) {
     this.name = name;
@@ -142,7 +136,7 @@ public class StateMachine extends Command {
   public void end(boolean interrupted) {
     if (debug) System.out.println("StateMachine end interrupted " + interrupted);
     // the StateMachine manager is stopping so cancel the State command if it's still running
-    var activeState = requirement.getCurrentCommand();
+    var activeState = stateCommandAugmentedPrevious;
     if (activeState != null) {
       activeState.cancel();
     }
@@ -183,9 +177,10 @@ public class StateMachine extends Command {
     @Override
     public void initialize() {
       events.clear(); // wipe the previous state's triggers
-      if(debug) System.out.println("state requiring StateMachine requirements " + CommandScheduler.getInstance().requiring(requirement).getName());
-
-      // make triggers for all of the current state's transitions
+      if(stateCommandAugmentedPrevious != null) {
+        stateCommandAugmentedPrevious.cancel(); // wipe the previous state in case it didn't finish itself
+      }
+       // make triggers for all of the current state's transitions
       if (state.transitions == null) {
         if(debug) System.out.println("no transitions from state " + state.name);
       }
@@ -198,6 +193,7 @@ public class StateMachine extends Command {
       }
 
       completedNormally = null; // reset for this new state
+      stateCommandAugmentedPrevious = this;
 
       m_command.initialize(); // Wrapper is done with its fussing so tell original command to initialize
     }
@@ -211,7 +207,10 @@ public class StateMachine extends Command {
     public void end(boolean interrupted) {
       m_command.end(interrupted); // tell original command to end and if this wrapper was interrupted or not
       if(debug) System.out.println("wrapper end by interrupt " + interrupted);
-      if (!interrupted) completedNormally = state; // indicate state ended by itself without others help
+      if (!interrupted) {
+        completedNormally = state; // indicate state ended by itself without others help
+      }
+      stateCommandAugmentedPrevious = null; // this command completed so there is no effective previous to cancel
     }
 
     /**
@@ -247,9 +246,7 @@ public class StateMachine extends Command {
      */
     private State(String name, Command stateCommand) {
       this.name = name;
-      // stateCommand.addRequirements(FSMrequirements); // lets scheduler cancel conflicting requirements - only one state may run at a time
       StateMachine.this.states.add(this);
-      stateCommand.addRequirements(requirement); // doesn't work for ignoreDisabled wrapper; requirement must be added before that usage
       this.stateCommandAugmented = new WrapState(this, stateCommand);
     }
 
@@ -349,7 +346,6 @@ public class StateMachine extends Command {
   private class Stopper extends Command {
     private Stopper() {
       setName("State Machine Stopper");
-      addRequirements(StateMachine.this.requirement);
     }
 
     @Override
@@ -425,8 +421,11 @@ public class StateMachine extends Command {
    * state changes from pathing to scoring. Changes of states scoring and celebrating are automatic
    * when those states end when their functions are completed. Celebrating can be forced to STOP
    * with the same Digital Input 0 (crude but easy and effective for a simple test method).
+   * 
+   * @throws edu.wpi.first.hal.util.AllocationException if run twice
    */
   public static void FSMtest() {
+    try {
     System.out.println("StateMachine");
     @SuppressWarnings("resource")
     DigitalInput DI_0 = new DigitalInput(0);
@@ -447,7 +446,7 @@ public class StateMachine extends Command {
 
     // Any state that does not have an exit transition is a sort of "stop" state. This "auto.stop"
     // is provided as a convenience and will stop both itself and stop the StateMachine command.
-    celebrating.switchTo(auto.stop).when(atScoringLocation);
+    celebrating.switchTo(auto.stop).when(atScoringLocation); // 
     pathing.switchTo(scoring).when(atScoringLocation);
     scoring.switchTo(celebrating).whenComplete();
     celebrating.switchTo(pathing).whenComplete();
@@ -455,140 +454,12 @@ public class StateMachine extends Command {
     auto.printStateMachine();
 
     auto.schedule();
+    } catch(Exception e){System.out.println("StateMachine test method FMStest failed probably because it was invoked twice and DIO 0 wasn't closed (on purpose)." + e.getMessage());}
   
   /* FSMtest results including CommandSchedulerLog to the console
   The DigitalInput 0 was manipulated to allow the states to cycle twice before activating the "stop" state.
   The Robot constructor was manipulated to slow the loop by a factor of 10 (less repetitive output)
 
-StateMachine
-All states for StateMachine Example State Machine
--------stopped state-------
-Notice - State has no exits and if entered will stop the FSM.
-
--------pathing state-------
-transition 2 frc.robot.subsystems.StateMachine$Transition@11423441 to scoring state with trigger frc.robot.subsystems.StateMachine$$Lambda$102/0x0000020e450a8200@3ccc2f3c
-
--------scoring state-------
-transition 3 frc.robot.subsystems.StateMachine$Transition@3c94f42d to celebrating state with trigger frc.robot.subsystems.StateMachine$State$NeedsConditionTransitionBuilder$$Lambda$106/0x0000020e450a9f98@39294734
-
--------celebrating state-------
-transition 1 frc.robot.subsystems.StateMachine$Transition@641bccb7 to stopped state with trigger frc.robot.subsystems.StateMachine$$Lambda$102/0x0000020e450a8200@3ccc2f3c
-transition 4 frc.robot.subsystems.StateMachine$Transition@297849cf to pathing state with trigger frc.robot.subsystems.StateMachine$State$NeedsConditionTransitionBuilder$$Lambda$106/0x0000020e450a9f98@32d6e551
-
--------junk-------
-Caution - State has no entrances and will not be used.
-
-state requiring FSMrequirements PathCommand
-pathing state made exit trigger from 2
- initializingPathCommand
-Command initialized : WrapState/PathCommand {FSMsubsystem}
-Command initialized : ScheduleCommand/ScheduleCommand {}
-Command initialized : StateMachine/StateMachine {}
-Command initialized : /StateMachine {}
-Command initialized : InstantCommand/InstantCommand {}
-Command executed : /StateMachine
-Command finished : /StateMachine after 1 runs
-Command executed : StateMachine/StateMachine
-Command executed : ScheduleCommand/ScheduleCommand
-Command finished : ScheduleCommand/ScheduleCommand after 1 runs
- execute PathCommandCommand executed : WrapState/PathCommand
-Command executed : InstantCommand/InstantCommand
-Command finished : InstantCommand/InstantCommand after 1 runs
- execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommanddebug external tripped the trigger 1
-Command initialized : PrintCommand/PrintCommand {}
-debug external tripped the trigger 2
-Command initialized : PrintCommand/PrintCommand {}
- execute PathCommandCommand executed : PrintCommand/PrintCommand
-Command finished : PrintCommand/PrintCommand after 1 runs
-Command executed : PrintCommand/PrintCommand
-Command finished : PrintCommand/PrintCommand after 1 runs
- ending PathCommand interrupted true
-wrapper end by interrupt true
-WrapState/PathCommand after 32 runs interrupted by command WrapState/ScoreCommand
-state requiring FSMrequirements ScoreCommand
-scoring state made exit trigger from 3
- initializingScoreCommand
-Command initialized : WrapState/ScoreCommand {FSMsubsystem}
- execute ScoreCommandCommand executed : WrapState/ScoreCommand
- execute ScoreCommand execute ScoreCommand execute ScoreCommand execute ScoreCommand execute ScoreCommandWrapper isFinished; everything completed normally true
- ending ScoreCommand interrupted false
-wrapper end by interrupt false
-Command finished : WrapState/ScoreCommand after 6 runs
-debug check state completed tripped the trigger 3
-Command initialized : PrintCommand/PrintCommand {}
-Command executed : PrintCommand/PrintCommand
-Command finished : PrintCommand/PrintCommand after 1 runs
-state requiring FSMrequirements CelebrateCommand
-celebrating state made exit trigger from 1
-celebrating state made exit trigger from 4
- initializingCelebrateCommand
-Command initialized : WrapState/CelebrateCommand {FSMsubsystem}
- execute CelebrateCommandCommand executed : WrapState/CelebrateCommand
- execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand
- execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommandWrapper isFinished; everything completed normally true
- ending CelebrateCommand interrupted false
-wrapper end by interrupt false
-Command finished : WrapState/CelebrateCommand after 101 runs
-debug check state completed tripped the trigger 4
-Command initialized : PrintCommand/PrintCommand {}
-Command executed : PrintCommand/PrintCommand
-Command finished : PrintCommand/PrintCommand after 1 runs
-state requiring FSMrequirements PathCommand
-pathing state made exit trigger from 2
- initializingPathCommand
-Command initialized : WrapState/PathCommand {FSMsubsystem}
- execute PathCommandCommand executed : WrapState/PathCommand
- execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommand execute PathCommanddebug external tripped the trigger 1
-Command initialized : PrintCommand/PrintCommand {}
-debug external tripped the trigger 2
-Command initialized : PrintCommand/PrintCommand {}
- execute PathCommandCommand executed : PrintCommand/PrintCommand
-Command finished : PrintCommand/PrintCommand after 1 runs
-Command executed : PrintCommand/PrintCommand
-Command finished : PrintCommand/PrintCommand after 1 runs
- ending PathCommand interrupted true
-wrapper end by interrupt true
-WrapState/PathCommand after 28 runs interrupted by command WrapState/ScoreCommand
-state requiring FSMrequirements ScoreCommand
-scoring state made exit trigger from 3
- initializingScoreCommand
-Command initialized : WrapState/ScoreCommand {FSMsubsystem}
- execute ScoreCommandCommand executed : WrapState/ScoreCommand
- execute ScoreCommand execute ScoreCommand execute ScoreCommand execute ScoreCommand execute ScoreCommandWrapper isFinished; everything completed normally true
- ending ScoreCommand interrupted false
-wrapper end by interrupt false
-Command finished : WrapState/ScoreCommand after 6 runs
-debug check state completed tripped the trigger 3
-Command initialized : PrintCommand/PrintCommand {}
-Command executed : PrintCommand/PrintCommand
-Command finished : PrintCommand/PrintCommand after 1 runs
-state requiring FSMrequirements CelebrateCommand
-celebrating state made exit trigger from 1
-celebrating state made exit trigger from 4
- initializingCelebrateCommand
-Command initialized : WrapState/CelebrateCommand {FSMsubsystem}
- execute CelebrateCommandCommand executed : WrapState/CelebrateCommand
- execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommand execute CelebrateCommanddebug external tripped the trigger 1
-Command initialized : PrintCommand/PrintCommand {}
-debug external tripped the trigger 2
-Command initialized : PrintCommand/PrintCommand {}
- execute CelebrateCommandCommand executed : PrintCommand/PrintCommand
-Command finished : PrintCommand/PrintCommand after 1 runs
-Command executed : PrintCommand/PrintCommand
-Command finished : PrintCommand/PrintCommand after 1 runs
- ending CelebrateCommand interrupted true
-wrapper end by interrupt true
-WrapState/CelebrateCommand after 32 runs interrupted by command WrapState/SequentialCommandGroup
-state requiring FSMrequirements SequentialCommandGroup
-no transitions from state stopped state
-stopping FSM
-Command initialized : WrapState/SequentialCommandGroup {FSMsubsystem}
-Command executed : WrapState/SequentialCommandGroup
-StateMachine end interrupted false
-Command finished : StateMachine/StateMachine after 210 runs
-Wrapper isFinished; everything completed normally true
-wrapper end by interrupt false
-Command finished : WrapState/SequentialCommandGroup after 2 runs
 
 */
   } // end method FSMtest
