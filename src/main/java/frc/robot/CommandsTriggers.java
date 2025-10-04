@@ -24,6 +24,7 @@ import frc.robot.subsystems.AchieveHueGoal;
 import frc.robot.subsystems.GroupDisjointSequenceTest;
 import frc.robot.subsystems.HistoryFSM;
 import frc.robot.subsystems.Intake;
+import frc.robot.subsystems.MooreLikeFSM;
 import frc.robot.subsystems.RobotSignals;
 import frc.robot.subsystems.StateMachine;
 import frc.robot.subsystems.RobotSignals.LEDPatternSupplier;
@@ -37,6 +38,7 @@ public abstract class CommandsTriggers {
   private static Optional<Boolean>           m_triggerNextCommand;
   private static Optional<HistoryFSM>        m_historyFSM;
   private static Optional<Intake>            m_intake;
+  private static Optional<MooreLikeFSM>      m_UselightBar;
   private static Optional<Boolean>           m_UseStateMachine;
   private static Optional<Boolean>           m_UseAutonomousSignal;
   private static Optional<Boolean>           m_UseColorWheel;
@@ -57,6 +59,7 @@ public abstract class CommandsTriggers {
     m_historyFSM = robotContainer.getM_historyFSM();
     m_intake = robotContainer.getM_intake();
     m_UseStateMachine = robotContainer.getM_stateMachine();
+    m_UselightBar = robotContainer.getM_mooreLikeFSM();
     m_UseAutonomousSignal = robotContainer.getM_autonomousSignal();
     m_UseColorWheel = robotContainer.getM_useColorWheel();
     m_UseMainDefault = robotContainer.getM_useMainDefault();
@@ -183,6 +186,24 @@ public abstract class CommandsTriggers {
     }
     else {
       return runOnce(()-> new Alert("Autonomous Signal not selected", AlertType.kWarning).set(true));
+    }
+  }
+
+  /**
+   * Create a command to start the Moore FSM StateMachine Light Bar
+   *
+   * @return command that can be scheduled to start the Light Bar
+   */
+  @SuppressWarnings("resource")
+  public static Command lightBar() {
+    if (m_UselightBar.isPresent()) {
+        // statements before the return are run early at initialization time
+      return
+          m_UselightBar.get().createLightBar()
+          .withName("MooreLightBar");
+    }
+    else {
+      return runOnce(()-> new Alert("Moore FSM Light Bar not selected", AlertType.kWarning).set(true));
     }
   }
 

@@ -218,11 +218,12 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
 public class Robot extends TimedRobot {
   private RobotContainer m_robotContainer = new RobotContainer();
   private Command m_autonomousSignal;
+  private Command lightBar;
 
   public Robot() {
     // super(0.2); // default 0.02
     CommandsTriggers.create(m_robotContainer);
-  }
+    }
 
   @Override
   public void robotPeriodic() {
@@ -236,22 +237,27 @@ public class Robot extends TimedRobot {
     // write outputs like logging, dashboards, indicators, meh - goal-oriented subsystem periodic
     m_robotContainer.runAfterCommands();
   }
-
+  
   @Override
-  public void disabledInit() {} // Commands running from another mode haven't been cancelled.
+  public void disabledInit() {
+    // demonstrate how to run disabled
+    lightBar = CommandsTriggers.lightBar().ignoringDisable(true); // save command to cancel it later
+    lightBar.schedule();
+  }
 
   @Override
   public void disabledPeriodic() {}
 
   @Override
-  public void disabledExit() {}
+  public void disabledExit() {
+    lightBar.cancel(); // example was for disabled only
+  }
 
   @Override
   public void autonomousInit() {
   
-    // Commands running from another mode haven't been cancelled directly but may be interrupted by
-    // these commands.
-    // m_robotContainer.getM_mooreLikeFSM().get().lightBar.schedule(); // example if not running disabled as in the example test case in the class
+    // Commands running from another mode haven't been cancelled directly here but may be
+    // interrupted by these commands.
     CommandsTriggers.setStateMachine().schedule();
     m_autonomousSignal = CommandsTriggers.setAutonomousSignal();
     m_autonomousSignal.schedule();

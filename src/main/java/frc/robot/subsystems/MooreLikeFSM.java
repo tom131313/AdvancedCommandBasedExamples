@@ -54,7 +54,6 @@ public class MooreLikeFSM {
   private double m_periodFactor; // changeable speed of the scanner
   private final Color m_color; // changeable color of the scanner
   private final double m_numberPeriods = 14.0; // number of periods or time bins to generate time-based triggers
-  public StateMachine lightBar;
 
   /**
    * Eight state FSM for the eight lights in the Knight Rider Kitt Scanner.
@@ -76,24 +75,14 @@ public class MooreLikeFSM {
     m_robotSignals = robotSignals;
     m_periodFactor = periodFactor;
     m_color = color;
-    lightBar = createLightBar();
-    lightBar.ignoringDisable(true).schedule(); // This FSM runs also disabled so start it immediately.
-    //  If the FSM doesn't run disabled, then start it in auto or periodic init with
-    // m_robotContainer.getM_mooreLikeFSM().get().lightBar.schedule();
-    //FIXME scanner doesn't appear to stop but a second createLightBar does print out the state machine
-
-    Commands.waitSeconds(10.)
-      .andThen(Commands.runOnce(()-> lightBar.cancel())).ignoringDisable(true).andThen(Commands.waitSeconds(5.))
-      .andThen(Commands.runOnce(()->{lightBar = createLightBar(); lightBar.ignoringDisable(true).schedule();}))
-      .ignoringDisable(true).schedule();
+    // start it in auto or periodic init with m_robotContainer.getM_mooreLikeFSM().get().schedule();
   }
 
   /**
-   * Create an FSM using methods that appear similar to the Command-Based V3 implementation of
-   * StateMachine.
+   * Factory to create a new lightBar FSM using methods that appear similar to the Command-Based V3
+   * implementation of StateMachine.
    * 
-   * <p>Use of ignoreDisabled requires using the requirement from the StateMachine (see ActivateLight
-   * command example)
+   * @return new lightBar FSM
    */
   public StateMachine createLightBar()
   {
@@ -102,7 +91,7 @@ public class MooreLikeFSM {
     // For this contrived example that's rather silly. The time period completely defines the state
     // and knowing the current state is completely unnecessary and extraneous but included to show
     // it can be done if that's how an FSM is defined.
-    lightBar = new StateMachine("Kitt Light Bar Scanner");
+    var lightBar = new StateMachine("Kitt Light Bar Scanner");
     // first you need commands
     Command activateLight1 = activateLight(LightState.Light1);
     Command activateLight2 = activateLight(LightState.Light2);

@@ -136,9 +136,8 @@ public class StateMachine extends Command {
   public void end(boolean interrupted) {
     if (debug) System.out.println("StateMachine end interrupted " + interrupted);
     // the StateMachine manager is stopping so cancel the State command if it's still running
-    var activeState = stateCommandAugmentedPrevious;
-    if (activeState != null) {
-      activeState.cancel();
+    if (stateCommandAugmentedPrevious != null) {
+      stateCommandAugmentedPrevious.cancel();
     }
   }
 
