@@ -55,12 +55,12 @@
  *  controller runs.
  * 
  * 6. LED set 6 usage MooreLikeFSM LEDView subsystem.
- *  Moore Like FSM structured subsystem runs continuously (except for a brief pause to show the FSM
- *  can be deactivated and reactivated) to display a KnightRider Kitt red LED Scanner. State is
- *  implemented as a single command.
+ *  Moore Like FSM structured StateMachine runs Disabled to display a KnightRider Kitt red LED
+ *  Scanner. This supersedes what is now called MooreLikeFSMAlternate which no longer has a test
+ *  case.
  * 
  *  In addition to the LED output the SmartDashboard/ShuffleBoard display the actions of the FSM
- *  last entry, steadystate, and exit methods.
+ *  steadystate.
  *
  * 7. LED set 7 usage MooreLikeFSMMultiCommand LEDView subsystem.
  *  Alternate version of the Moore Like FSM showing use of multiple commands to implement a state.
@@ -77,7 +77,7 @@
  *  commands structure. Optionally in code the disjoint can be by triggers
  *  (TriggeredDisjointSequenceGroup).
  * 
- *  9. Console Terminal usage for the Moore-like StateMachine (like V3).
+ *  9. Console Terminal usage for the Moore-like StateMachine test case (like V3).
  * 
  *  TriggeredDisjointParallelGroup demo is somewhat similar to the TriggeredDisjointSequenceGroup
  *  and is activated by entering test mode.

@@ -1,4 +1,4 @@
-package frc.robot.subsystems;
+package frc.robot;
 
 import static edu.wpi.first.units.Units.Seconds;
 
@@ -32,7 +32,8 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * 
  * <p>This code has several print statements to show the execution of the state commands (normally
  * specified by the user) and also several print statements that are considered debugging of the
- * StateMachine flow (they should be removed for productive use).
+ * StateMachine flow (they should be removed for productive use and are controlled herein with the
+ * "debug" variable).
  */
 public class StateMachine extends Command {
 
@@ -40,7 +41,7 @@ public class StateMachine extends Command {
   // "ONE-TIME" SETUP THE STATE MACHINE
   /////////////////////////////////////
   
-  private final boolean debug = false; // activate debug prints to terminal
+  private final boolean debug = false; //FIXME activate debug prints to terminal
 
   private String name;
   private boolean FSMfinished;
@@ -413,6 +414,8 @@ public class StateMachine extends Command {
    * <p>Because of the Digital Input resource is allocated herein without closing it, this
    * test case method can not be rescheduled without restarting the program. Normal usage would
    * be the triggering resources would be more independent of the StateMachine.
+   * <p>The Robot constructor "super(loop speed)" can be manipulated to slow the loop by a factor
+   * of 10 or so for less repetitive output.
    * <pre><code>
     StateMachine.FSMtest();
     </code></pre>
@@ -439,7 +442,7 @@ public class StateMachine extends Command {
     State pathing = auto.addState("pathing state", drive_followPath);
     State scoring = auto.addState("scoring state", scorer_score);
     State celebrating = auto.addState("celebrating state", leds_celebrate);
-    State testState = auto.addState("junk", Commands.none()); // testing unused state report
+    State testState = auto.addState("junk", Commands.none()); // purposeful testing unused state report
     
     auto.setInitialState(pathing);
 
@@ -454,12 +457,5 @@ public class StateMachine extends Command {
 
     auto.schedule();
     } catch(Exception e){System.out.println("StateMachine test method FMStest failed probably because it was invoked twice and DIO 0 wasn't closed (on purpose)." + e.getMessage());}
-  
-  /* FSMtest results including CommandSchedulerLog to the console
-  The DigitalInput 0 was manipulated to allow the states to cycle twice before activating the "stop" state.
-  The Robot constructor was manipulated to slow the loop by a factor of 10 (less repetitive output)
-
-
-*/
   } // end method FSMtest
 } // end class StateMachine

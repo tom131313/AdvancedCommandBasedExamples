@@ -138,10 +138,12 @@ public class CommandSchedulerLog
             {
                 String interrupter;
                 if (interruptedBy.isPresent()) {
-                    interrupter =  "interrupted by command " + command.getClass().getSimpleName() + "/" + interruptedBy.get().getName();
+                    interrupter =  
+                        "interrupted by command " + command.getClass().getSimpleName() + "/" + interruptedBy.get().getName();
                 }
                 else {
-                    interrupter = "interrupted"; // interrupted not by a command - mode change, cancelled, timeOut, until, etc.
+                    interrupter = 
+                        "interrupted"; // interrupted not by a command - mode change, cancelled, timeOut, until, etc.
                 }
 
                 String key = command.getClass().getSimpleName() + "/" + command.getName();

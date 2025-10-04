@@ -1,4 +1,4 @@
-package frc.robot.subsystems;
+package frc.robot;
 
 import java.util.function.BooleanSupplier;
 
@@ -8,8 +8,8 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import frc.robot.StateMachine.State;
 import frc.robot.subsystems.RobotSignals.LEDView;
-import frc.robot.subsystems.StateMachine.State;
 
 /**
  * Demonstration of a Moore-Like FSM example that is similar to composing sequential and parallel

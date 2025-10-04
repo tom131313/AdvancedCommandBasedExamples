@@ -14,6 +14,13 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 /**
+ * Caution: this Subsystem no longer has a test case in this project. It has been superseded by the
+ * Moore-Like FSM that uses the enclosed StateMachine class to implement an FSM. This class used to
+ * be called MooreLikeFSM until the functions were converted to the newer StateMachine usage.
+ * 
+ * The Moore-LIke FSM MultiCommand that does have a test case remains similar to this example (that
+ * supports more command options and has not been converted to use StateMachine).
+ * 
  * Demonstration of a Moore-Like FSM example that is similar to composing sequential and parallel
  * command groups. Triggers are used to control state selection instead of other commands and
  * decorators.

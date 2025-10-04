@@ -24,9 +24,7 @@ import frc.robot.subsystems.AchieveHueGoal;
 import frc.robot.subsystems.GroupDisjointSequenceTest;
 import frc.robot.subsystems.HistoryFSM;
 import frc.robot.subsystems.Intake;
-import frc.robot.subsystems.MooreLikeFSM;
 import frc.robot.subsystems.RobotSignals;
-import frc.robot.subsystems.StateMachine;
 import frc.robot.subsystems.RobotSignals.LEDPatternSupplier;
 
 public abstract class CommandsTriggers {

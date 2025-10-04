@@ -18,7 +18,6 @@ import frc.robot.subsystems.AchieveHueGoal;
 import frc.robot.subsystems.GroupDisjointSequenceTest;
 import frc.robot.subsystems.HistoryFSM;
 import frc.robot.subsystems.Intake;
-import frc.robot.subsystems.MooreLikeFSM;
 import frc.robot.subsystems.MooreLikeFSMMultiCommand;
 import frc.robot.subsystems.RobotSignals;
 
