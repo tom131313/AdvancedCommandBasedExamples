@@ -258,7 +258,6 @@ public class Robot extends TimedRobot {
   
     // Commands running from another mode haven't been cancelled directly here but may be
     // interrupted by these commands.
-    CommandsTriggers.setStateMachine().schedule();
     m_autonomousSignal = CommandsTriggers.setAutonomousSignal();
     m_autonomousSignal.schedule();
   }

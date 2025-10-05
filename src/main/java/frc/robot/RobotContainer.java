@@ -33,7 +33,6 @@ public class RobotContainer {
   private boolean useIntake                    = false || allExamples;
   private boolean useMooreLikeFSM              = false || allExamples;
   private boolean useMooreLikeFSMMultiCommand  = false || allExamples;
-  private boolean useStateMachine_FSM          = false || allExamples;
   private boolean useAutonomousSignal          = false || allExamples;
   private boolean useColorWheel                = false || allExamples;
   private boolean useMainDefault               = false || allExamples;
@@ -97,11 +96,6 @@ public class RobotContainer {
   private Optional<MooreLikeFSMMultiCommand> m_mooreLikeFSMMultiCommand = useMooreLikeFSMMultiCommand ? Optional.of(new MooreLikeFSMMultiCommand(m_robotSignals.m_imposter, 9.9, Color.kOrange)) : Optional.empty();
   public Optional<MooreLikeFSMMultiCommand> getM_mooreLikeFSMMultiCommand() {
     return m_mooreLikeFSMMultiCommand;
-  }
-
-  private Optional<Boolean> m_stateMachine = useStateMachine_FSM ? Optional.of(true) : Optional.empty();
-  public Optional<Boolean> getM_stateMachine() {
-    return m_stateMachine;
   }
 
   private Optional<Boolean> m_autonomousSignal = useAutonomousSignal ? Optional.of(true) : Optional.empty();

@@ -142,7 +142,7 @@ public class MooreLikeFSM {
     light4.switchTo(light3).when(period11);
     light3.switchTo(light2).when(period12);
     light2.switchTo(light1).when(period13);
-    // light8.switchTo(lightBar.stop).when(period7); // test stop state
+    // light2.switchTo(StateMachine.stop).when(period13); // test stop state
   
     lightBar.printStateMachine();
     // There is no end State defined so keep scanning until the FSM is cancelled.

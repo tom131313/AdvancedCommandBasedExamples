@@ -1,14 +1,5 @@
 package frc.robot;
 
-import static edu.wpi.first.units.Units.Seconds;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.BooleanSupplier;
-
-import edu.wpi.first.units.measure.Time;
-import edu.wpi.first.wpilibj.DigitalInput;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.event.EventLoop;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -16,10 +7,14 @@ import edu.wpi.first.wpilibj2.command.ScheduleCommand;
 import edu.wpi.first.wpilibj2.command.WrapperCommand;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BooleanSupplier;
+
 // @SuppressWarnings("unused")
 /**
  * Example of a Finite State Machine (FSM) using simple methods to build the FSM from those utility
- * class. Based on the user-facing appearance of Command-Based V3 (as of 9/2025).
+ * class. Based on the user-facing appearance of Command-Based V3 (as of 10/2025).
  * <p>This is essentially the same as typical coding of Triggers with conditions and onTrue commands.
  * The benefit of this FSM implementation is not so much changing the names of the two methods but
  * the state changing triggers exist only for the duration of the state instead of being a perpetual
@@ -29,6 +24,9 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * FSM "cyclic" behavior.
  * 
  * <p>This code has incomplete validation to prevent really bad parameters such as inappropriate nulls.
+ * 
+ * <p>Any state without exit transitions is a stop state if entered and completes. User may code a
+ * stop state or use the freebie "StateMachine.stop".
  * 
  * <p>This code has several print statements to show the execution of the state commands (normally
  * specified by the user) and also several print statements that are considered debugging of the
@@ -50,12 +48,12 @@ public class StateMachine extends Command {
   private int transitionID = 0; // unique sequence number for debugging only needed for printing the StateMachine - not in the logical flow
   private State initialState; // user must call setInitialState or runtime fails with this null pointer
   private State completedNormally = null; // used for transition trigger whenComplete
-  public final State stop;
+  public static State stop; // free stopping state for all modes; user may use their own and if FSM is running disabled, then the stop command must also.
   private Command stateCommandAugmentedPrevious = null; // need to know if previous is still running so can be cancelled on state transition
 
   public StateMachine(String name) {
     this.name = name;
-    stop = addState("stopped state", new Stopper());
+    stop = addState("stopped state", Commands.none().ignoringDisable(true));
   }
 
   /**
@@ -150,6 +148,7 @@ public class StateMachine extends Command {
    */
   @Override
   public boolean isFinished() {
+    if (debug) System.out.println("StateMachine ending " + FSMfinished);
     return FSMfinished;
   }
 
@@ -210,7 +209,10 @@ public class StateMachine extends Command {
       if (!interrupted) {
         completedNormally = state; // indicate state ended by itself without others help
       }
-      stateCommandAugmentedPrevious = null; // this command completed so there is no effective previous to cancel
+      stateCommandAugmentedPrevious = null; // indicate state ended (there is no effective previous to cancel)
+      if (state.transitions.isEmpty()) {
+        FSMfinished = true; // tell StateMachine to end since this was last command to run (no exit transitions)
+      }
     }
 
     /**
@@ -223,11 +225,11 @@ public class StateMachine extends Command {
      */
     @Override
     public boolean isFinished() {
-      var completed = m_command.isFinished(); // check original command finished by itself or not, remember that and pass that along
+      var completed = m_command.isFinished(); // check original command finished by itself or not, Wrapper follows underlying command
       if (completed) {
         if(debug) System.out.println("Wrapper isFinished; everything completed normally " + completed);
       }
-      return completed; // Wrapper follows underlying command
+      return completed;
     }
   } // end class WrapState
 
@@ -306,7 +308,7 @@ public class StateMachine extends Command {
         transitionID++;
         final int ID = transitionID;
         transitions.add(new Transition(m_targetState, condition, ID)); // wrap condition and add to the list a transition to this state
-        if(debug) new Trigger(condition).onTrue(Commands.print("debug external tripped the trigger " + ID));
+        // if(debug) new Trigger(condition).onTrue(Commands.print("debug external tripped the trigger " + ID));
       }
 
       /**
@@ -318,7 +320,7 @@ public class StateMachine extends Command {
         transitionID++;
         final int ID = transitionID;
         transitions.add(new Transition(m_targetState, condition, ID)); // wrap condition and add to the list a transition to this state
-        if(debug) new Trigger(condition).onTrue(Commands.print("debug check state completed tripped the trigger " + ID));
+        // if(debug) new Trigger(condition).onTrue(Commands.print("debug check state completed tripped the trigger " + ID));
       }
     } // end class NeedsConditionTransitionBuilder
   } // end class State
@@ -337,125 +339,4 @@ public class StateMachine extends Command {
       this.transitionID = transitionID;
     }
   } // end class Transition
-
-  /**
-   * Stop the StateMachine Command that does nothing except help define a stopped state. (The user
-   * may provide any state desired that has no exits and the command ends normally to be the stop
-   * state.)
-   */
-  private class Stopper extends Command {
-    private Stopper() {
-      setName("State Machine Stopper");
-    }
-
-    @Override
-    public boolean runsWhenDisabled() {
-      return true;
-    }
-
-    @Override
-    public void initialize() {
-      FSMfinished = true;
-    }
-    @Override
-    public boolean isFinished() {
-      return true;
-    }
-  }
-
-  /**
-   * Command Factory for testing StateMachine
-   * 
-   * Using this syntax is slightly easier to read than using "new TestDuration()".
-   *
-   * @param testName output this number and the resource (subsystem) ID
-   * @param testDuration elapsed time to run execute() to produce output
-   * @return command that puts out a "testNumber" for "testDuration" time
-   */
-  public Command testDuration(String testName, Time testDuration) {
-    return new TestDuration(testName, testDuration);
-  }
-
-  private class TestDuration extends Command {
-    private final String testName;
-    private final Time testDuration;
-    Timer endTime = new Timer();
-
-    private TestDuration(String testName, Time testDuration) {
-      this.testName = testName;
-      this.testDuration = testDuration;
-      setName(testName);
-    }
-
-    @Override
-    public void initialize() {
-      System.out.println(" initializing" + testName);
-      endTime.restart();
-    }
-
-    @Override
-    public void execute() {
-      System.out.print(" execute " + testName);
-    }
-
-    @Override
-    public void end(boolean interrupted) {
-      System.out.println(" ending " + testName + " interrupted " + interrupted);
-    }
-
-    @Override
-    public boolean isFinished() {
-      return endTime.hasElapsed(testDuration.in(Seconds));
-    }
-  }
-
-  /**
-   * Usage:
-   * <p>Because of the Digital Input resource is allocated herein without closing it, this
-   * test case method can not be rescheduled without restarting the program. Normal usage would
-   * be the triggering resources would be more independent of the StateMachine.
-   * <p>The Robot constructor "super(loop speed)" can be manipulated to slow the loop by a factor
-   * of 10 or so for less repetitive output.
-   * <pre><code>
-    StateMachine.FSMtest();
-    </code></pre>
-   * Change the state of Digital Input 0 (0, 1, 0, 1, 0, etc.) to indicate atScoringPosition and
-   * state changes from pathing to scoring. Changes of states scoring and celebrating are automatic
-   * when those states end when their functions are completed. Celebrating can be forced to STOP
-   * with the same Digital Input 0 (crude but easy and effective for a simple test method).
-   * 
-   * @throws edu.wpi.first.hal.util.AllocationException if run twice
-   */
-  public static void FSMtest() {
-    try {
-    System.out.println("StateMachine");
-    @SuppressWarnings("resource")
-    DigitalInput DI_0 = new DigitalInput(0);
-    BooleanSupplier atScoringLocation = ()-> DI_0.get();
-
-    StateMachine auto = new StateMachine("Example State Machine");
-
-    Command drive_followPath = auto.testDuration("PathCommand", Seconds.of(1000.));
-    Command scorer_score = auto.testDuration("ScoreCommand", Seconds.of(1.));
-    Command leds_celebrate = auto.testDuration("CelebrateCommand", Seconds.of(20.));
-
-    State pathing = auto.addState("pathing state", drive_followPath);
-    State scoring = auto.addState("scoring state", scorer_score);
-    State celebrating = auto.addState("celebrating state", leds_celebrate);
-    State testState = auto.addState("junk", Commands.none()); // purposeful testing unused state report
-    
-    auto.setInitialState(pathing);
-
-    // Any state that does not have an exit transition is a sort of "stop" state. This "auto.stop"
-    // is provided as a convenience and will stop both itself and stop the StateMachine command.
-    celebrating.switchTo(auto.stop).when(atScoringLocation); // 
-    pathing.switchTo(scoring).when(atScoringLocation);
-    scoring.switchTo(celebrating).whenComplete();
-    celebrating.switchTo(pathing).whenComplete();
-    
-    auto.printStateMachine();
-
-    auto.schedule();
-    } catch(Exception e){System.out.println("StateMachine test method FMStest failed probably because it was invoked twice and DIO 0 wasn't closed (on purpose)." + e.getMessage());}
-  } // end method FSMtest
 } // end class StateMachine

@@ -37,7 +37,6 @@ public abstract class CommandsTriggers {
   private static Optional<HistoryFSM>        m_historyFSM;
   private static Optional<Intake>            m_intake;
   private static Optional<MooreLikeFSM>      m_UselightBar;
-  private static Optional<Boolean>           m_UseStateMachine;
   private static Optional<Boolean>           m_UseAutonomousSignal;
   private static Optional<Boolean>           m_UseColorWheel;
   private static Optional<Boolean>           m_UseMainDefault;
@@ -56,7 +55,6 @@ public abstract class CommandsTriggers {
     m_triggerNextCommand = robotContainer.getM_triggerNextCommand();
     m_historyFSM = robotContainer.getM_historyFSM();
     m_intake = robotContainer.getM_intake();
-    m_UseStateMachine = robotContainer.getM_stateMachine();
     m_UselightBar = robotContainer.getM_mooreLikeFSM();
     m_UseAutonomousSignal = robotContainer.getM_autonomousSignal();
     m_UseColorWheel = robotContainer.getM_useColorWheel();
@@ -166,24 +164,6 @@ public abstract class CommandsTriggers {
     else
     {
       return runOnce(()-> new Alert("Trigger Next Command Test not selected", AlertType.kWarning).set(true));
-    }
-  }
-
-  /**
-   * Create a command to start the StateMachine test
-   *
-   * @return command that can be scheduled to start the State Machine
-   */
-  @SuppressWarnings("resource")
-  public static Command setStateMachine() {
-    if (m_UseStateMachine.isPresent()) {
-        // statements before the return are run early at initialization time
-      return
-          runOnce(()->StateMachine.FSMtest())
-          .withName("StateMachine");
-    }
-    else {
-      return runOnce(()-> new Alert("Autonomous Signal not selected", AlertType.kWarning).set(true));
     }
   }
 
