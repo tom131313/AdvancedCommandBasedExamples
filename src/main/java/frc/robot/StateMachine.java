@@ -31,11 +31,6 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * would be idle for its duration. Example idle state shown below could be used to keep the StateMachine
  * running so it does not end and need to be recreated for a restart.
  * 
- * <p>This code has several print statements to show the execution of the state commands (normally
- * specified by the user) and also several print statements that are considered debugging of the
- * StateMachine flow (they should be removed for productive use and are controlled herein with the
- * "debug" variable).
- * 
  * <p>Example code for stop and idle:
  *<pre><code>
 State stop = addState("stop state", Commands.none().ignoringDisable(true));
@@ -49,13 +44,10 @@ public class StateMachine extends Command {
   // "ONE-TIME" SETUP THE STATE MACHINE
   /////////////////////////////////////
   
-  private final boolean debug = false; //FIXME activate debug prints to terminal
-
   private String name;
   private boolean FSMfinished;
   private EventLoop events = new EventLoop();
   private List<State> states = new ArrayList<State>(); // All the states users instantiate (and STOP) only needed for printing the StateMachine - not in the logical flow
-  private int transitionID = 0; // unique sequence number for debugging only needed for printing the StateMachine - not in the logical flow
   private State initialState = null; // user calls setInitialState or else the first state made is the default initial state
   private State completedNormally = null; // used for transition trigger whenComplete
   private Command stateCommandAugmentedPrevious = null; // need to know if previous is still running so can be cancelled on state transition
@@ -65,7 +57,7 @@ public class StateMachine extends Command {
   }
 
   /**
-   * Required to set the initial state or runtime fails with a null pointer.
+   * Set the initial state else the first state made is the default initial state.
    *
    * @param initialState The new initial state. Cannot be null.
    */
@@ -96,8 +88,8 @@ public class StateMachine extends Command {
       // loop through all the transitions of this state
       for (Transition transition : state.transitions) {
         noExits = false; // at least one transition out of this state
-        System.out.println("transition " + transition.transitionID + " "
-        + transition + " to " + transition.nextState.name + " with trigger " + transition.triggeringEvent);
+        System.out.println("transition " +
+          transition + " to " + transition.nextState.name + " with trigger " + transition.triggeringEvent);
       }          
 
       // loop through all the states again to find at least one entrance to this state
@@ -145,7 +137,6 @@ public class StateMachine extends Command {
    */
   @Override
   public void end(boolean interrupted) {
-    if (debug) System.out.println("StateMachine end interrupted " + interrupted);
     // the StateMachine manager is stopping so cancel the State command if it's still running
     if (stateCommandAugmentedPrevious != null) {
       stateCommandAugmentedPrevious.cancel();
@@ -160,7 +151,6 @@ public class StateMachine extends Command {
    */
   @Override
   public boolean isFinished() {
-    if (debug) System.out.println("StateMachine ending " + FSMfinished);
     return FSMfinished;
   }
 
@@ -192,14 +182,10 @@ public class StateMachine extends Command {
         stateCommandAugmentedPrevious.cancel(); // wipe the previous state in case it didn't finish itself
       }
        // make triggers for all of the current state's transitions
-      if (state.transitions == null) {
-        if(debug) System.out.println("no transitions from state " + state.name);
-      }
-      else {
+      if (state.transitions != null) {
         for (Transition transition : state.transitions) { //  add all the events for this state
           new Trigger (events, transition.triggeringEvent)
             .onTrue(transition.nextState.stateCommandAugmented);
-          if(debug) System.out.println(state.name + " made exit trigger from " + transition.transitionID);
         }
       }
 
@@ -217,7 +203,6 @@ public class StateMachine extends Command {
     @Override
     public void end(boolean interrupted) {
       m_command.end(interrupted); // tell original command to end and if this wrapper was interrupted or not
-      if(debug) System.out.println("wrapper end by interrupt " + interrupted);
       if (!interrupted) {
         completedNormally = state; // indicate state ended by itself without others help
       }
@@ -237,11 +222,7 @@ public class StateMachine extends Command {
      */
     @Override
     public boolean isFinished() {
-      var completed = m_command.isFinished(); // check original command finished by itself or not, Wrapper follows underlying command
-      if (completed) {
-        if(debug) System.out.println("Wrapper isFinished; everything completed normally " + completed);
-      }
-      return completed;
+        return m_command.isFinished(); // check original command finished by itself or not, Wrapper follows underlying command
     }
   } // end class WrapState
 
@@ -317,10 +298,7 @@ public class StateMachine extends Command {
        * @param condition The condition that will trigger the transition.
        */
       public void when(BooleanSupplier condition) { // imply run until the event then transition
-        transitionID++;
-        final int ID = transitionID;
-        transitions.add(new Transition(m_targetState, condition, ID)); // wrap condition and add to the list a transition to this state
-        // if(debug) new Trigger(condition).onTrue(Commands.print("debug external tripped the trigger " + ID));
+        transitions.add(new Transition(m_targetState, condition)); // wrap condition and add to the list a transition to this state
       }
 
       /**
@@ -329,10 +307,7 @@ public class StateMachine extends Command {
        */
       public void whenComplete() {
         BooleanSupplier condition = ()-> State.this == completedNormally;
-        transitionID++;
-        final int ID = transitionID;
-        transitions.add(new Transition(m_targetState, condition, ID)); // wrap condition and add to the list a transition to this state
-        // if(debug) new Trigger(condition).onTrue(Commands.print("debug check state completed tripped the trigger " + ID));
+        transitions.add(new Transition(m_targetState, condition)); // wrap condition and add to the list a transition to this state
       }
     } // end class NeedsConditionTransitionBuilder
   } // end class State
@@ -343,12 +318,10 @@ public class StateMachine extends Command {
   private class Transition {
     State nextState; // also, essentially the "key" to finding a state
     BooleanSupplier triggeringEvent;
-    int transitionID; // unique ID as the "key" to find a transition
 
-    private Transition(State toNextState, BooleanSupplier whenEvent, int transitionID) {
+    private Transition(State toNextState, BooleanSupplier whenEvent) {
       this.nextState = toNextState;
       this.triggeringEvent = whenEvent; 
-      this.transitionID = transitionID;
     }
   } // end class Transition
 } // end class StateMachine
