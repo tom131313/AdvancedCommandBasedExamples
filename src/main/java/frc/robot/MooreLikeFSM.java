@@ -12,41 +12,28 @@ import frc.robot.StateMachine.State;
 import frc.robot.subsystems.RobotSignals.LEDView;
 
 /**
- * Demonstration of a Moore-Like FSM example that is similar to composing sequential and parallel
- * command groups. Triggers are used to control state selection instead of other commands and
- * decorators.
+ * Demonstration of a Moore-Like FSM example based on the StateMachine class model that has the same
+ * appearance as the StateMachine in WPILib Command-Based V3.
  * 
  * This FSM example sequentially displays eight red LEDs first to last then back last to first
  *   1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 7 -> 6 -> 5 -> 4 -> 3 -> 2 -> 1 -> 2 ...
  * 
- * The triggers are 1/10 second clock divided into 14 bins for 14 triggers needed for this example
- * of the Knight Rider Kitt Scanner.
+ * The triggers are a user specified clock period (1/10th second) distributed among 14 bins for 14
+ * triggers needed for this example of the Knight Rider Kitt Scanner.
  * 
- * The scanner runs Disabled and Enabled so the FSM is started immediately.
+ * The scanner runs Disabled or Enabled and in the example usage in Robot it is started immediately.
  * 
  * This example is a bit of a cheat - that is there are a few things wrong with it not being a
  * perfect FSM. There are several complex states but they are all identical except for a sequence
  * number. That allows severe compression of code.  Normally each state would have its own Functional
  * Command combining the Entry, Exit, and Steady-state Runnables for that state. The designation of
- * what is a state is subject to interpretation. There are 14 timed states and OFF. Or are there
- * 8 states of the lights (plus OFF) and each of those states has 2 possible exit transitions for
- * counting up or counting down. This example muddies the waters in this regard. This example
- * unnecessarily has a memory of what state it is in. The triggers by timed periods know their state
- * but if the scheme of having 8 states is used then each state needs to know itself so the exit
- * transition can correctly select for counting up or counting down. Real FSM usage requires better
- * design and not combine two schemes just for illustrative purposes.
+ * what is a state is subject to interpretation. There are 14 timed states (STOP example is available
+ * but commented out). Or are there 8 states of the lights (plus STOP) and each of those states has 2
+ * possible exit transitions for counting up or counting down. This example defines 8 states each of
+ * has two transitions.
  * 
- * 
- * This Moore-Like FSM is initially inactive and defines an Initial State when the FSM is activated.
- * 
- * Each state is composed of a State Entry Action, "Steady-State" Action and State Exit Action.
- * 
- * Each state waits for a transition requiring the state to exit.
- * 
- * A Transition from State to State is defined as the Current State + Trigger Condition yields Next
- * State.
- * 
- * This FSM does not demonstrate an STOP State except by cancelling the command.
+ * This FSM does not demonstrate an STOP State except by cancelling the command. An example STOP is
+ * commented out.
  */
 public class MooreLikeFSM {
 
@@ -86,11 +73,9 @@ public class MooreLikeFSM {
    */
   public StateMachine createLightBar()
   {
-    // Each transition is the current state to exit AND a timed event period that together
-    // trigger a command to attain the next state.
-    // For this contrived example that's rather silly. The time period completely defines the state
-    // and knowing the current state is completely unnecessary and extraneous but included to show
-    // it can be done if that's how an FSM is defined.
+    // With the StateMachine usage each transition belongs exclusively to the current state to exit.
+    // The transition is the triggering condition and the next state to transition to.
+
     var lightBar = new StateMachine("Kitt Light Bar Scanner");
     // first you need commands
     Command activateLight1 = activateLight(LightState.Light1);
@@ -216,6 +201,3 @@ public class MooreLikeFSM {
     };
   }
 }
-/*
-
- */

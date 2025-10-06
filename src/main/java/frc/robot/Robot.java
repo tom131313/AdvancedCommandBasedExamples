@@ -20,7 +20,7 @@
  *     StateMachine class usage. It is similar in appearance to the Command-Based V3 StateMachine.
  *     (The underlying V3 code bears little resemblance to this V2 based operation.)
  *
- * Because all but two demonstrations uses an addressable LED strip as output (two have console
+ * Because all but one demonstration use an addressable LED strip as output (one has console
  * output) there is significant overlap and depth in demonstrating style of using the 2025 advanced
  * addressable LED classes and methods.
  * 
@@ -76,8 +76,6 @@
  *  the subsystem requirement is disjointed from the group by using a Proxy structure or separated
  *  commands structure. Optionally in code the disjoint can be by triggers
  *  (TriggeredDisjointSequenceGroup).
- * 
- *  9. Console Terminal usage for the Moore-like StateMachine test case (like V3).
  * 
  *  TriggeredDisjointParallelGroup demo is somewhat similar to the TriggeredDisjointSequenceGroup
  *  and is activated by entering test mode.
