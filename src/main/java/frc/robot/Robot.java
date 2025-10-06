@@ -26,7 +26,7 @@
  * 
  * Demonstration output is on seven sets of eight identical LEDs to show the program is operating;
  * operator input is Xbox controller. The other demonstrations outputs are the terminal console
- * "prints."
+ * "prints" and SmartDashboard.
  *
  * 1. LED set 1 usage Top LEDView subsystem default blue.
  *  Autonomous mode command brown fast blink.
@@ -60,7 +60,7 @@
  *  case.
  * 
  *  In addition to the LED output the SmartDashboard/ShuffleBoard display the actions of the FSM
- *  steadystate.
+ *  steadystate. Also, the StateMachine is printed when it is created.
  *
  * 7. LED set 7 usage MooreLikeFSMMultiCommand LEDView subsystem.
  *  Alternate version of the Moore Like FSM showing use of multiple commands to implement a state.
@@ -126,7 +126,7 @@
  * Use of a reusable Moore-Like FSM structure of current state, trigger, new state transitions.
  * Use of a perpetually running command to accept "goals".
  * Use of Alerts.
- * Preview of the StateMachine class usage in Command-Based V3
+ * Preview of the StateMachine class usage in Command-Based V3 - can be used in V2
  */
 
 /*

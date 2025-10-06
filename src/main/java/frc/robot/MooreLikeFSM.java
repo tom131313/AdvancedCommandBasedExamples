@@ -19,7 +19,8 @@ import frc.robot.subsystems.RobotSignals.LEDView;
  *   1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 7 -> 6 -> 5 -> 4 -> 3 -> 2 -> 1 -> 2 ...
  * 
  * To demonstrate the trigger for "whenComplete" a cycle counter state is added. It contributes
- * nothing to the light bar and is just to show the use of "whenComplete".
+ * nothing to the light bar and is just to show the use of "whenComplete". The cycle count is
+ * displayed inSmartDashboard.]
  * 
  * The triggers are a user specified clock period (1/10th second) distributed among 14 bins for 14
  * triggers needed for this example of the Knight Rider Kitt Scanner.
@@ -28,14 +29,15 @@ import frc.robot.subsystems.RobotSignals.LEDView;
  * 
  * This example is a bit of a cheat - that is there are a few things wrong with it not being a
  * perfect FSM. There are several complex states but they are all identical except for a sequence
- * number. That allows severe compression of code.  Normally each state would have its own Functional
- * Command combining the Entry, Exit, and Steady-state Runnables for that state. The designation of
- * what is a state is subject to interpretation. There are 14 timed states (STOP example is available
- * but commented out). Or are there 8 states of the lights (plus STOP) and each of those states has 2
- * possible exit transitions for counting up or counting down. This example defines 8 states each of
- * has two transitions.
+ * number - light number. That allows severe compression of code.  Normally each state would have its
+ * own Functional Command combining the Entry, Exit, and Steady-state Runnables for that state.
  * 
- * This FSM does not demonstrate an STOP State except by cancelling the command. An example STOP is
+ * There 8 states of the lights and each of those states has 2 possible exit transitions for counting
+ * up or counting down. An additional state to count cycles is defined to show an example of the
+ * transition made if a state completes normally (internal event) and was not interrupted by an
+ * external event.
+ * 
+ * This FSM does not demonstrate a STOP State except by cancelling the command. An example STOP is
  * commented out.
  */
 public class MooreLikeFSM {
@@ -83,7 +85,7 @@ public class MooreLikeFSM {
     // With the StateMachine usage each transition belongs exclusively to the current state to exit.
     // The transition is the triggering condition and the next state to transition to.
 
-    counter = 0;
+    counter = 0; // something to display for the "whenComplete" example state
 
     var lightBar = new StateMachine("Kitt Light Bar Scanner");
 
@@ -114,7 +116,8 @@ public class MooreLikeFSM {
     lightBar.setInitialState(countCycles);
 
     // then you need conditions
-    // note that the whenComplete condition is implied by the use of that method
+    // These are external conditions for the "when". The condition for "whenComplete" is internal
+    // and implied by the use of that method.
     BooleanSupplier period0 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 0;
     BooleanSupplier period1 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 1;
     BooleanSupplier period2 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 2;
@@ -145,11 +148,13 @@ public class MooreLikeFSM {
     light5.switchTo(light4).when(period10);
     light4.switchTo(light3).when(period11);
     light3.switchTo(light2).when(period12);
-    light2.switchTo(countCycles).when(period13);
+    light2.switchTo(countCycles).when(period13); // replace this transition with below stop to see FSM stop after one cycle
     // light2.switchTo(StateMachine.stop).when(period13); // test stop state
+    // Unless the above stop statement is uncommented and transitioned to there is no end State defined so
+    // keep scanning until the FSM is cancelled.
   
     lightBar.printStateMachine();
-    // There is no end State defined so keep scanning until the FSM is cancelled.
+
     return lightBar;
   }
 
