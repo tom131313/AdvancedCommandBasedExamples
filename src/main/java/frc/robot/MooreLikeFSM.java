@@ -18,6 +18,9 @@ import frc.robot.subsystems.RobotSignals.LEDView;
  * This FSM example sequentially displays eight red LEDs first to last then back last to first
  *   1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 7 -> 6 -> 5 -> 4 -> 3 -> 2 -> 1 -> 2 ...
  * 
+ * To demonstrate the trigger for "whenComplete" a cycle counter state is added. It contributes
+ * nothing to the light bar and is just to show the use of "whenComplete".
+ * 
  * The triggers are a user specified clock period (1/10th second) distributed among 14 bins for 14
  * triggers needed for this example of the Knight Rider Kitt Scanner.
  * 
@@ -41,14 +44,18 @@ public class MooreLikeFSM {
   private double m_periodFactor; // changeable speed of the scanner
   private final Color m_color; // changeable color of the scanner
   private final double m_numberPeriods = 14.0; // number of periods or time bins to generate time-based triggers
+  private int counter;
 
   /**
-   * Eight state FSM for the eight lights in the Knight Rider Kitt Scanner.
+   * Eight states of the lights in the Knight Rider Kitt Scanner.
    * Caution - anti-pattern - the ordinal of the state is used as the hardware LED index (0 based).
    * That could be made more obvious by using a class variable for each state.
+   * 
+   * These states only roughly correspond to the States of the StateMachine as they are the light
+   * patterns only and aren't used for the counter State.
    */ 
   private enum LightState
-    {Light1, Light2, Light3, Light4, Light5, Light6, Light7, Light8, Inactive};
+    {Light1, Light2, Light3, Light4, Light5, Light6, Light7, Light8};
 
   /**
    * A Moore-Like FSM to display lights similar to the Knight Rider Kitt Scanner
@@ -76,8 +83,12 @@ public class MooreLikeFSM {
     // With the StateMachine usage each transition belongs exclusively to the current state to exit.
     // The transition is the triggering condition and the next state to transition to.
 
+    counter = 0;
+
     var lightBar = new StateMachine("Kitt Light Bar Scanner");
+
     // first you need commands
+    Command count = Commands.runOnce(()->SmartDashboard.putNumber("light bar cycles", ++counter)).ignoringDisable(true);
     Command activateLight1 = activateLight(LightState.Light1);
     Command activateLight2 = activateLight(LightState.Light2);
     Command activateLight3 = activateLight(LightState.Light3);
@@ -86,7 +97,10 @@ public class MooreLikeFSM {
     Command activateLight6 = activateLight(LightState.Light6);
     Command activateLight7 = activateLight(LightState.Light7);
     Command activateLight8 = activateLight(LightState.Light8);
+
+
     // then the commands create the states
+    State countCycles = lightBar.addState("count cycles", count);
     State light1 = lightBar.addState("light1", activateLight1);
     State light2 = lightBar.addState("light2", activateLight2);
     State light3 = lightBar.addState("light3", activateLight3);
@@ -95,9 +109,12 @@ public class MooreLikeFSM {
     State light6 = lightBar.addState("light6", activateLight6);
     State light7 = lightBar.addState("light7", activateLight7);
     State light8 = lightBar.addState("light8", activateLight8);
+
     // need an initial state at some point before running
-    lightBar.setInitialState(light1);
+    lightBar.setInitialState(countCycles);
+
     // then you need conditions
+    // note that the whenComplete condition is implied by the use of that method
     BooleanSupplier period0 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 0;
     BooleanSupplier period1 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 1;
     BooleanSupplier period2 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 2;
@@ -112,7 +129,9 @@ public class MooreLikeFSM {
     BooleanSupplier period11 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 11;
     BooleanSupplier period12 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 12;
     BooleanSupplier period13 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 13;
+
     // the conditions determine the state changes
+    countCycles.switchTo(light1).whenComplete();
     light1.switchTo(light2).when(period0);
     light2.switchTo(light3).when(period1);
     light3.switchTo(light4).when(period2);
@@ -126,7 +145,7 @@ public class MooreLikeFSM {
     light5.switchTo(light4).when(period10);
     light4.switchTo(light3).when(period11);
     light3.switchTo(light2).when(period12);
-    light2.switchTo(light1).when(period13);
+    light2.switchTo(countCycles).when(period13);
     // light2.switchTo(StateMachine.stop).when(period13); // test stop state
   
     lightBar.printStateMachine();
