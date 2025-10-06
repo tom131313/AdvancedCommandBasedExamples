@@ -1,15 +1,14 @@
 package frc.robot;
 
-import edu.wpi.first.wpilibj.event.EventLoop;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.ScheduleCommand;
-import edu.wpi.first.wpilibj2.command.WrapperCommand;
-import edu.wpi.first.wpilibj2.command.button.Trigger;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
+
+import edu.wpi.first.wpilibj.event.EventLoop;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.ScheduleCommand;
+import edu.wpi.first.wpilibj2.command.WrapperCommand;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 // @SuppressWarnings("unused")
 /**
@@ -25,13 +24,24 @@ import java.util.function.BooleanSupplier;
  * 
  * <p>This code has incomplete validation to prevent really bad parameters such as inappropriate nulls.
  * 
- * <p>Any state without exit transitions is a stop state if entered and completes. User may code a
- * stop state or use the freebie "StateMachine.stop".
+ * <p>Any state without exit transitions is a stop state if entered and completes. Example stop state
+ * shown below. This ends the command running the StateMachine.
+ * 
+ * <p>The StateMachine does not have an idle state. Any state entered, does nothing and exited
+ * would be idle for its duration. Example idle state shown below could be used to keep the StateMachine
+ * running so it does not end and need to be recreated for a restart.
  * 
  * <p>This code has several print statements to show the execution of the state commands (normally
  * specified by the user) and also several print statements that are considered debugging of the
  * StateMachine flow (they should be removed for productive use and are controlled herein with the
  * "debug" variable).
+ * 
+ * <p>Example code for stop and idle:
+ *<pre><code>
+State stop = addState("stop state", Commands.none().ignoringDisable(true));
+State idle = addState("idle state", Commands.idle().ignoringDisable(true));
+ A transition from idle to the next state must be specified.
+ *</code></pre>
  */
 public class StateMachine extends Command {
 
@@ -46,14 +56,12 @@ public class StateMachine extends Command {
   private EventLoop events = new EventLoop();
   private List<State> states = new ArrayList<State>(); // All the states users instantiate (and STOP) only needed for printing the StateMachine - not in the logical flow
   private int transitionID = 0; // unique sequence number for debugging only needed for printing the StateMachine - not in the logical flow
-  private State initialState; // user must call setInitialState or runtime fails with this null pointer
+  private State initialState = null; // user calls setInitialState or else the first state made is the default initial state
   private State completedNormally = null; // used for transition trigger whenComplete
-  public static State stop; // free stopping state for all modes; user may use their own and if FSM is running disabled, then the stop command must also.
   private Command stateCommandAugmentedPrevious = null; // need to know if previous is still running so can be cancelled on state transition
 
   public StateMachine(String name) {
     this.name = name;
-    stop = addState("stopped state", Commands.none().ignoringDisable(true));
   }
 
   /**
@@ -66,7 +74,11 @@ public class StateMachine extends Command {
   }
 
   public State addState(String name, Command stateCommand) {
-    return new State(name, stateCommand);
+    var state = new State(name, stateCommand);
+    if (initialState == null) { // first state made is the default initial state
+      initialState = state;
+    }
+    return state;
   }
 
   /**
@@ -79,7 +91,7 @@ public class StateMachine extends Command {
       boolean noExits = true; // initially haven't found any
       boolean noEntrances = true; // initially haven't found any
 
-      System.out.println("-------" + state.name + "-------");
+      System.out.println("-------" + state.name + "-------" + (state == initialState ? " INITIAL STATE" : ""));
 
       // loop through all the transitions of this state
       for (Transition transition : state.transitions) {

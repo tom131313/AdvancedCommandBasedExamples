@@ -148,10 +148,8 @@ public class MooreLikeFSM {
     light5.switchTo(light4).when(period10);
     light4.switchTo(light3).when(period11);
     light3.switchTo(light2).when(period12);
-    light2.switchTo(countCycles).when(period13); // replace this transition with below stop to see FSM stop after one cycle
-    // light2.switchTo(StateMachine.stop).when(period13); // test stop state
-    // Unless the above stop statement is uncommented and transitioned to there is no end State defined so
-    // keep scanning until the FSM is cancelled.
+    light2.switchTo(countCycles).when(period13);
+    //there is no end State defined so keep scanning until the FSM is cancelled.
   
     lightBar.printStateMachine();
 
