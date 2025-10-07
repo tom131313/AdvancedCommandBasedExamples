@@ -26,18 +26,54 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * 
  * <p>This code has incomplete validation to prevent really bad parameters such as inappropriate nulls.
  * 
- * <p>Any state without exit transitions is a stop state if entered and completes. Example stop state
+ * <p>Any state without an exit transition is a stop state if entered and completes. Example stop state
  * shown below. This ends the command running the StateMachine.
  * 
- * <p>The StateMachine does not have an idle state. Any state entered, does nothing and exited
+ * <p>The StateMachine does not have an idle state. Any state entered and does nothing until interrupted
  * would be idle for its duration. Example idle state shown below could be used to keep the StateMachine
- * running so it does not end and need to be recreated for a restart.
+ * running so it does not end and would not need to be recreated for a restart.
  * 
- * <p>Example code for stop and idle:
  *<pre><code>
-State stop = addState("stop state", Commands.none().ignoringDisable(true));
-State idle = addState("idle state", Commands.idle().ignoringDisable(true));
- A transition from idle to the next state must be specified.
+ * / **
+ *  * Example factory of an example state machine
+ *  * 
+ *  * @return state machine that must be scheduled in some manner -
+ *  * .schedule(), triggered by a condition or button press, for example.
+ *  * /
+ * public StateMachine createStateMachine()
+ * {
+ *       // first you need a StateMachine
+ *       var stateMachine = new StateMachine("Example FSM");
+ *
+ *       // then you need commands
+ *       Command cmd1 = Commands.runOnce(()->System.out.println("command 1 printed this one line.")).ignoringDisable(true);
+ *       Command cmd2 = Commands.run(()->System.out.println("command 2 loops until interrupted."));
+ *
+ *       // next the commands create the states
+ *       State state1 = stateMachine.addState("State 1", cmd1);
+ *       State state2 = stateMachine.addState("state 2", cmd2);
+ *
+ *       // need an initial state at some point before running (first state made is the default if not otherwise set)
+ *       stateMachine.setInitialState(state1);
+ *
+ *       // then you need conditions
+ *       // These are external conditions for the "when". The condition for "whenComplete" is internal
+ *       // and implied by the use of that method.
+ *       BooleanSupplier condition1 = () -> (int) (Timer.getFPGATimestamp()*10. % 14.) == 0;
+ *
+ *       // the conditions determine the state changes
+ *       state1.switchTo(state2).whenComplete();
+ *       state2.switchTo(state1).when(condition1);
+ *
+ *       // Examples of a stop state and idle state that could have been used (but were not)
+ *       State stop = stateMachine.addState("stop state", Commands.none().ignoringDisable(true)); // test message
+ *       State idle = stateMachine.addState("idle state", Commands.idle().ignoringDisable(true)); // test message
+ *   
+ *       System.out.println(stateMachine);
+ *   
+ *       return stateMachine;
+ * }
+ * createStateMachine.schedule();
  *</code></pre>
  */
 public class StateMachine extends Command {
@@ -76,22 +112,26 @@ public class StateMachine extends Command {
   }
 
   /**
-   * Print transition information about the StateMachine
+   * Print State and Transition information about the StateMachine
+   * 
+   * @return String of StateMachine information
    */
-  public void printStateMachine() {
-    System.out.println("All states for StateMachine " + name);
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append("All states for StateMachine " + name + "\n");
     
     for (State state : states) {
       boolean noExits = true; // initially haven't found any
       boolean noEntrances = true; // initially haven't found any
 
-      System.out.println("-------" + state.name + "-------" + (state == initialState ? " INITIAL STATE" : ""));
+      sb.append("-------" + state.name + "-------" + (state == initialState ? " INITIAL STATE\n" : "\n"));
 
       // loop through all the transitions of this state
       for (Transition transition : state.transitions) {
         noExits = false; // at least one transition out of this state
-        System.out.println("transition " +
-          transition + " to " + transition.nextState.name + " with trigger " + transition.triggeringEvent);
+        sb.append("transition " +
+          transition + " to " + transition.nextState.name + " with trigger " + transition.triggeringEvent + "\n");
       }          
 
       // loop through all the states again to find at least one entrance to this state
@@ -104,11 +144,12 @@ public class StateMachine extends Command {
           }
         }
       }
-  System.out.println(
-    (noEntrances?"Caution - State has no entrances and will not be used.\n":
-    noExits?"Notice - State has no exits and if entered will stop the FSM.\n":""));
+      sb.append(
+        (noEntrances?"Caution - State has no entrances and will not be used.\n\n":
+        noExits?"Notice - State has no exits and if entered will either stop or hang the StateMachine command.\n\n":"\n"));
+    }
+    return sb.toString();
   }
-}
 
   /////////////////////////////////////////////////////
   // THE ITERATIVE CONTROL COMMAND OF THE STATE MACHINE
