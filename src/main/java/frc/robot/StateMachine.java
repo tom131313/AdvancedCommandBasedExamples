@@ -17,7 +17,9 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * <p>This is essentially the same as typical coding of Triggers with conditions and onTrue commands.
  * The benefit of this FSM implementation is not so much changing the names of the two methods but
  * the state changing triggers exist only for the duration of the state instead of being a perpetual
- * part of the huge mass of triggers for the robot code.
+ * part of the huge mass of triggers for the robot code. Another feature is an automatically created
+ * internal trigger for when a state command completes normally instead of being interrupted. Use
+ * "whenComplete()" to use that feature (instead of "when()" which needs an external trigger condition).
  * 
  * <p>Command-Based classes are used to wrap the users commands and triggers in order to define the
  * FSM "cyclic" behavior.
@@ -210,19 +212,6 @@ public class StateMachine extends Command {
       if (state.transitions.isEmpty()) {
         FSMfinished = true; // tell StateMachine to end since this was last command to run (no exit transitions)
       }
-    }
-
-    /**
-     * This method overrides the super just so it can print the message for debugging.
-     * If the message is no longer needed, then this entire method should be removed.
-     * 
-     * Once a command finishes, the scheduler will call its end() method and un-schedule it.
-     *
-     * @return whether the command has finished.
-     */
-    @Override
-    public boolean isFinished() {
-        return m_command.isFinished(); // check original command finished by itself or not, Wrapper follows underlying command
     }
   } // end class WrapState
 
