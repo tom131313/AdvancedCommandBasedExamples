@@ -12,14 +12,18 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 // @SuppressWarnings("unused")
 /**
- * Example of a Finite State Machine (FSM) using simple methods to build the FSM from those utility
- * class. Based on the user-facing appearance of Command-Based V3 (as of 10/2025).
+ * Example of a Finite State Machine (FSM) using simple methods to build the FSM.
+ * 
+ * <p>Based on the user-facing appearance of Command-Based V3 (as of 10/2025).
+ * 
  * <p>This is essentially the same as typical coding of Triggers with conditions and onTrue commands.
- * The benefit of this FSM implementation is not so much changing the names of the two methods but
- * the state changing triggers exist only for the duration of the state instead of being a perpetual
- * part of the huge mass of triggers for the robot code. Another feature is an automatically created
+ * The benefit of this FSM implementation is not so much changing the names of the methods but the
+ * state changing triggers exist only for the duration of the state instead of being a perpetual
+ * part of the huge mass of triggers for the robot code.
+ * 
+ * <p>Another feature is an automatically created
  * internal trigger for when a state command completes normally instead of being interrupted. Use
- * "whenComplete()" to use that feature (instead of "when()" which needs an external trigger condition).
+ * "whenComplete()" to use that feature. Use "when()" for a typical external trigger condition.
  * 
  * <p>Command-Based classes are used to wrap the users commands and triggers in order to define the
  * FSM "cyclic" behavior.
@@ -87,7 +91,7 @@ public class StateMachine extends Command {
   private EventLoop events = new EventLoop();
   private List<State> states = new ArrayList<State>(); // All the states users instantiate (and STOP) only needed for printing the StateMachine - not in the logical flow
   private State initialState = null; // user calls setInitialState or else the first state made is the default initial state
-  private State completedNormally = null; // used for transition trigger whenComplete
+  private State completedNormally = null; // used for internal transition trigger whenComplete
   private Command stateCommandAugmentedPrevious = null; // need to know if previous is still running so can be cancelled on state transition
 
   public StateMachine(String name) {
@@ -97,12 +101,20 @@ public class StateMachine extends Command {
   /**
    * Set the initial state else the first state made is the default initial state.
    *
-   * @param initialState The new initial state. Cannot be null.
+   * @param initialState The new initial state. Cannot be null. The last initial state set before
+   * scheduling the StateMachine is the effective initial state.
    */
   public void setInitialState(State initialState) {
     this.initialState = initialState;
   }
 
+  /**
+   * Associate a state and a command
+   * 
+   * @param name of the state
+   * @param stateCommand command used to effect the state
+   * @return the state
+   */
   public State addState(String name, Command stateCommand) {
     var state = new State(name, stateCommand);
     if (initialState == null) { // first state made is the default initial state
@@ -155,32 +167,26 @@ public class StateMachine extends Command {
   // THE ITERATIVE CONTROL COMMAND OF THE STATE MACHINE
   /////////////////////////////////////////////////////
  
-  /** The initial subroutine of a command. Called once when the command is scheduled. */
+  /** Called once when the StateMachine command is scheduled. */
   public void initialize() {
-    // System.out.println("StateMachine initialize");
     FSMfinished = false;
     events.clear(); // make sure clear in case there would be a race between the execute poll and the next command clear (maybe used if FSM can start/stop which it can't right now)
     new ScheduleCommand(initialState.stateCommandAugmented).schedule();
   }
 
-  /** The main body of a command. Called repeatedly while the command is scheduled. */
+  /** Called repeatedly while the StateMachine is running to check for triggering events. */
   @Override
   public void execute() {
     events.poll(); // check for events that can trigger transitions out of this state
   }
 
   /**
-   * This method overrides the super just so it can print the message for debugging.
-   * If the message is no longer needed, then this entire method should be removed.
-   * 
-   * The action to take when the command ends. Called when either the command finishes normally, or
-   * when it interrupted/canceled.
-
-   * @param interrupted whether the command was interrupted/canceled
+   * StateMachine is ending
+   * @param interrupted whether the command was interrupted/canceled (not used)
    */
   @Override
   public void end(boolean interrupted) {
-    // the StateMachine manager is stopping so cancel the State command if it's still running
+    // cancel the State command if it's still running
     if (stateCommandAugmentedPrevious != null) {
       stateCommandAugmentedPrevious.cancel();
     }
@@ -190,11 +196,11 @@ public class StateMachine extends Command {
    * Whether the command has finished. Once a command finishes, the scheduler will call its end()
    * method and un-schedule it.
    *
-   * @return whether the command has finished.
+   * @return whether the stateMachine command has been ordered to finish.
    */
   @Override
   public boolean isFinished() {
-    return FSMfinished;
+    return FSMfinished; // check if last state command ordered StateMachine to stop
   }
 
   /////////////////////////////////////
@@ -216,7 +222,7 @@ public class StateMachine extends Command {
     /**
      * We're here because somebody scheduled us and we are running.
      * The initial state was scheduled when the StateMachine started.
-     * All the rest of the states to run must be scheduled by an event triggering them onTrue.
+     * All the rest of the states that run must be scheduled by an event.
      */
     @Override
     public void initialize() {
@@ -232,7 +238,7 @@ public class StateMachine extends Command {
         }
       }
 
-      completedNormally = null; // reset for this new state
+      completedNormally = null; // reset internal trigger for this new state
       stateCommandAugmentedPrevious = this;
 
       m_command.initialize(); // Wrapper is done with its fussing so tell original command to initialize
@@ -247,7 +253,7 @@ public class StateMachine extends Command {
     public void end(boolean interrupted) {
       m_command.end(interrupted); // tell original command to end and if this wrapper was interrupted or not
       if (!interrupted) {
-        completedNormally = state; // indicate state ended by itself without others help
+        completedNormally = state; // for internal trigger indicate state ended by itself without others help
       }
       stateCommandAugmentedPrevious = null; // indicate state ended (there is no effective previous to cancel)
       if (state.transitions.isEmpty()) {
@@ -327,7 +333,7 @@ public class StateMachine extends Command {
        *
        * @param condition The condition that will trigger the transition.
        */
-      public void when(BooleanSupplier condition) { // imply run until the event then transition
+      public void when(BooleanSupplier condition) { // imply run until the external event then transition
         transitions.add(new Transition(m_targetState, condition)); // wrap condition and add to the list a transition to this state
       }
 
@@ -336,14 +342,14 @@ public class StateMachine extends Command {
        * transitions first.
        */
       public void whenComplete() {
-        BooleanSupplier condition = ()-> State.this == completedNormally;
+        BooleanSupplier condition = ()-> State.this == completedNormally; // internal trigger for command completion trigger
         transitions.add(new Transition(m_targetState, condition)); // wrap condition and add to the list a transition to this state
       }
     } // end class NeedsConditionTransitionBuilder
   } // end class State
 
   /**
-   * class Transition is a Triggering EVENT to change to the next COMMAND (STATE)
+   * class Transition is a Triggering external event to change to the next command (state)
    */
   private class Transition {
     State nextState; // also, essentially the "key" to finding a state

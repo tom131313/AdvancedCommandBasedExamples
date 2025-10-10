@@ -20,7 +20,7 @@ import frc.robot.subsystems.RobotSignals.LEDView;
  * 
  * To demonstrate the trigger for "whenComplete" a cycle counter state is added. It contributes
  * nothing to the light bar and is just to show the use of "whenComplete". The cycle count is
- * displayed inSmartDashboard.]
+ * displayed in SmartDashboard.
  * 
  * The triggers are a user specified clock period (1/10th second) distributed among 14 bins for 14
  * triggers needed for this example of the Knight Rider Kitt Scanner.
@@ -33,9 +33,10 @@ import frc.robot.subsystems.RobotSignals.LEDView;
  * own Functional Command combining the Entry, Exit, and Steady-state Runnables for that state.
  * 
  * There 8 states of the lights and each of those states has 2 possible exit transitions for counting
- * up or counting down. An additional state to count cycles is defined to show an example of the
- * transition made if a state completes normally (internal event) and was not interrupted by an
- * external event.
+ * up or counting down with the 14 clocked triggers. An additional state to count cycles is defined
+ * to show an example of the transition made if a state completes normally (internal event) and was
+ * not interrupted by an external event. [The FSM could have been organized as 14 states with one
+ * clocked triggered.]
  * 
  * This FSM does not demonstrate a STOP State except by cancelling the command. An example STOP is
  * commented out.
@@ -66,12 +67,10 @@ public class MooreLikeFSM {
    * @param periodFactor Specify the speed of the Scanner (suggest about 10.0)
    * @param color Specify the color of the Scanner (suggest Color.kRed)
    */
-
   public MooreLikeFSM(LEDView robotSignals, double periodFactor, Color color) {
     m_robotSignals = robotSignals;
     m_periodFactor = periodFactor;
     m_color = color;
-    // start it in auto or periodic init with m_robotContainer.getM_mooreLikeFSM().get().schedule();
   }
 
   /**
@@ -100,8 +99,7 @@ public class MooreLikeFSM {
     Command activateLight7 = activateLight(LightState.Light7);
     Command activateLight8 = activateLight(LightState.Light8);
 
-
-    // then the commands create the states
+    // then the commands create (equivalent) the states
     State countCycles = lightBar.addState("count cycles", count);
     State light1 = lightBar.addState("light1", activateLight1);
     State light2 = lightBar.addState("light2", activateLight2);
@@ -116,8 +114,8 @@ public class MooreLikeFSM {
     lightBar.setInitialState(countCycles);
 
     // then you need conditions
-    // These are external conditions for the "when". The condition for "whenComplete" is internal
-    // and implied by the use of that method.
+    // These are external conditions for the "when()". The condition for "whenComplete()" is
+    // internal and implied by the use of that method.
     BooleanSupplier period0 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 0;
     BooleanSupplier period1 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 1;
     BooleanSupplier period2 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 2;
@@ -175,7 +173,7 @@ public class MooreLikeFSM {
    */
   private final Command activateLight(LightState state) {
     return 
-      // steady-state action
+      // steady-state action; entry and exit actions not needed for these commands
         Commands.run(() ->
           {
             LEDPattern currentStateSignal = oneLEDSmeared(state.ordinal(), m_color, Color.kBlack);
@@ -226,4 +224,4 @@ public class MooreLikeFSM {
       }
     };
   }
-}
+} // end class

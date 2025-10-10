@@ -33,7 +33,7 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * 
  * This example is a bit of a cheat. There are several complex states but they are all identical
  * except for a sequence number. That allows severe compression of code.  Normally each state would
- * have three separate Commands for the Entry, Exit, and Steady-state.
+ * have three separate Commands or runnables for the Entry, Exit, and Steady-state.
  *
  * 
  * This Moore-Like FSM is initially stopped and defines an Initial State when the FSM is started.
