@@ -38,12 +38,12 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * running so it does not end and would not need to be recreated for a restart.
  * 
  *<pre><code>
- * / **
+ * {@literal /}**
  *  * Example factory of an example state machine
  *  * 
- *  * @return state machine that must be scheduled in some manner -
+ *  * {@literal @@return} state machine that must be scheduled in some manner -
  *  * .schedule(), triggered by a condition or button press, for example.
- *  * /
+ *  *{@literal /}
  * public StateMachine createStateMachine()
  * {
  *       // first you need a StateMachine
