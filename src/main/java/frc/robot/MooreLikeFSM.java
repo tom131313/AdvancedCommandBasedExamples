@@ -146,12 +146,14 @@ public class MooreLikeFSM {
     light5.switchTo(light4).when(period10);
     light4.switchTo(light3).when(period11);
     light3.switchTo(light2).when(period12);
-    light2.switchTo(countCycles).when(period13);
+    light2.switchTo(countCycles).when(period13); // awkward looking sequence but I didn't want the light1 to be hit twice in a row and depend on the right clock timing
     //there is no real end State defined so keep scanning until the FSM is cancelled.
 
-    State stop = lightBar.addState("stop state", Commands.none().ignoringDisable(true)); // test message
-    State idle = lightBar.addState("idle state", Commands.idle().ignoringDisable(true)); // test message
-    light2.switchTo(idle).whenComplete(); // test message
+    // test StateMachine.toString() messages
+    @SuppressWarnings("unused")
+    State stop = lightBar.addState("stop state", Commands.none().ignoringDisable(true));
+    State idle = lightBar.addState("idle state", Commands.idle().ignoringDisable(true));
+    light2.switchTo(idle).whenComplete();
 
     System.out.println(lightBar);
 
