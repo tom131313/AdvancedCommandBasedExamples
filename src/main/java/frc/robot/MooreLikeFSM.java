@@ -110,9 +110,6 @@ public class MooreLikeFSM {
     State light7 = lightBar.addState("light7", activateLight7);
     State light8 = lightBar.addState("light8", activateLight8);
 
-    // need an initial state at some point before running
-    lightBar.setInitialState(countCycles);
-
     // then you need conditions
     // These are external conditions for the "when()". The condition for "whenComplete()" is
     // internal and implied by the use of that method.
@@ -131,6 +128,9 @@ public class MooreLikeFSM {
     BooleanSupplier period12 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 12;
     BooleanSupplier period13 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 13;
 
+    // need an initial state at some point before running
+    lightBar.setInitialState(countCycles);
+
     // the conditions determine the state changes
     countCycles.switchTo(light1).whenComplete();
     light1.switchTo(light2).when(period0);
@@ -140,18 +140,17 @@ public class MooreLikeFSM {
     light5.switchTo(light6).when(period4);
     light6.switchTo(light7).when(period5);
     light7.switchTo(light8).when(period6);
+    // light8.exitStateMachine().when(period7); // test exit
     light8.switchTo(light7).when(period7);
     light7.switchTo(light6).when(period8);
     light6.switchTo(light5).when(period9);
     light5.switchTo(light4).when(period10);
     light4.switchTo(light3).when(period11);
     light3.switchTo(light2).when(period12);
-    light2.switchTo(countCycles).when(period13); // awkward looking sequence but I didn't want the light1 to be hit twice in a row and depend on the right clock timing
-    //there is no real end State defined so keep scanning until the FSM is cancelled.
+    light2.switchTo(countCycles).when(period13); // awkward looking sequence but I didn't want light1 to be hit twice in a row and depend on the right clock timing
+    // There is no exit StateMachine defined so keep scanning until the FSM is cancelled.
 
     // test StateMachine.toString() messages
-    @SuppressWarnings("unused")
-    State stop = lightBar.addState("stop state", Commands.none().ignoringDisable(true));
     State idle = lightBar.addState("idle state", Commands.idle().ignoringDisable(true));
     light2.switchTo(idle).whenComplete();
 
