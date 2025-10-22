@@ -132,7 +132,7 @@ public class MooreLikeFSM {
     lightBar.setInitialState(countCycles);
 
     // the conditions determine the state changes
-    countCycles.switchTo(light1).whenComplete();
+    countCycles.switchTo(light1).whenComplete(); // assumes countCycles runs for less than the time period trigger for light1 else obvious delay
     light1.switchTo(light2).when(period0);
     light2.switchTo(light3).when(period1);
     light3.switchTo(light4).when(period2);
@@ -140,8 +140,8 @@ public class MooreLikeFSM {
     light5.switchTo(light6).when(period4);
     light6.switchTo(light7).when(period5);
     light7.switchTo(light8).when(period6);
-    // light8.exitStateMachine().when(period7); // test exit
     light8.switchTo(light7).when(period7);
+    light8.exitStateMachine().when(period7); // test exit
     light7.switchTo(light6).when(period8);
     light6.switchTo(light5).when(period9);
     light5.switchTo(light4).when(period10);

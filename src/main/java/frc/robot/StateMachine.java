@@ -24,21 +24,27 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * state changing triggers exist only for the duration of the state instead of being a perpetual
  * part of the huge mass of triggers for the robot code.
  * 
- * <p>Another feature is an automatically created
- * internal trigger for when a state command completes normally instead of being interrupted. Use
- * "whenComplete()" to use that feature. Use "when()" for a typical external trigger condition.
+ * <p>Another feature is an automatically created internal trigger for when a state command completes
+ * normally instead of being interrupted. Use "whenComplete()" to use that feature. Use "when()" for a
+ * typical external trigger condition.
+ * 
+ * <p>Multiple transitions with the same conditions normally result in only the first transition being
+ * used. An exception is the "exitStateMachine" tends to be ignored if its condition duplicates another.
+ * It's best not to specify two different transitions with effectively the same condition; then it's
+ * fully deterministic and obvious what is intended. Duplicate conditions may not behave exactly as the
+ * 2027 WPILib implementation as it is structured very differently (better when using V3 instead of V2).
+ * 
+ * <p>Any state without a transition is an exit state if entered and completes or hangs the stateMachine
+ * if it doesn't complete. A purposeful exit can be coded with "somestate.exitStateMachine().when(somecondition);"
+ * 
+ * <p>The StateMachine does not have an idle state. Any state entered and does nothing until interrupted
+ * would be idle for its duration. Example idle state shown below could be used to keep the StateMachine
+ * running so it does not end and would not need to be recreated for a restart.
  * 
  * <p>Command-Based classes are used to wrap the users commands and triggers in order to define the
  * FSM "cyclic" behavior.
  * 
  * <p>This code has incomplete validation to prevent all really bad parameters such as inappropriate nulls.
- * 
- * <p>Any state without an exit transition is a exit state if entered and completes. A purposeful exit
- * can be coded with "somestate.exitStateMachine().when(somecondition);"
- * 
- * <p>The StateMachine does not have an idle state. Any state entered and does nothing until interrupted
- * would be idle for its duration. Example idle state shown below could be used to keep the StateMachine
- * running so it does not end and would not need to be recreated for a restart.
  * 
  *<pre><code>
  * {@literal /}**
@@ -73,8 +79,8 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  *       state2.switchTo(state1).when(condition1);
  *       state2.exitStateMachine.when(condition2); // optional exit
  *
- *       // Examples of a stop state and idle state that could have been used (but were not)
- *       State stop = stateMachine.addState("stop state", Commands.none().ignoringDisable(true)); // test message
+ *       // Examples of a (not recommended) stop state and idle state that could have been used (but were not)
+ *       State stop = stateMachine.addState("stop state", Commands.none().ignoringDisable(true)); // better to use "exitStateMachine"; test message
  *       State idle = stateMachine.addState("idle state", Commands.idle().ignoringDisable(true)); // test message
  *   
  *       System.out.println(stateMachine);
@@ -91,9 +97,9 @@ public class StateMachine extends Command {
   /////////////////////////////////////
   
   private String name;
-  private boolean FSMfinished;
+  private boolean exitStateMachine;
   private EventLoop events = new EventLoop();
-  private List<State> states = new ArrayList<State>(); // All the states users instantiate (and STOP) only needed for printing the StateMachine - not in the logical flow
+  private List<State> states = new ArrayList<State>(); // All the states users instantiate is only used for printing the StateMachine - not in the logical flow
   private State initialState = null; // user must call setInitialState
   private State completedNormally = null; // used for internal transition trigger whenComplete
   private Command stateCommandAugmentedPrevious = null; // need to know if previous is still running so can be cancelled on state transition
@@ -145,7 +151,7 @@ public class StateMachine extends Command {
       for (Transition transition : state.transitions) {
         noExits = false; // at least one transition out of this state
         sb.append("transition " +
-          transition + " to " + (transition.nextState != null ? transition.nextState.name : "exit StateMachine") + " with trigger " + transition.triggeringEvent + "\n");
+          transition + " to " + (transition.nextState != null ? transition.nextState.name : "exit StateMachine") + " onTrue trigger " + transition.triggeringEvent + "\n");
       }          
 
       // loop through all the states again to find at least one entrance to this state
@@ -171,7 +177,7 @@ public class StateMachine extends Command {
  
   /** Called once when the StateMachine command is scheduled. */
   public void initialize() {
-    FSMfinished = false;
+    exitStateMachine = false;
     events.clear(); // make sure clear in case there would be a race between the execute poll and the next command clear (maybe used if FSM can start/stop which it can't right now)
     new ScheduleCommand(initialState.stateCommandAugmented).schedule();
   }
@@ -202,11 +208,11 @@ public class StateMachine extends Command {
    */
   @Override
   public boolean isFinished() {
-    return FSMfinished; // check if last state command ordered StateMachine to stop
+    return exitStateMachine; // check if last state command ordered StateMachine to stop
   }
 
   /////////////////////////////////////
-  // RUN THE WRAPPED STATES AS COMMANDS
+  // RUN THE STATES AS WRAPPED COMMANDS
   /////////////////////////////////////
   /**
    * Wrap a command to define the state.
@@ -233,15 +239,15 @@ public class StateMachine extends Command {
         stateCommandAugmentedPrevious.cancel(); // wipe the previous state in case it didn't finish itself
       }
       // make triggers for all of the current state's transitions
-      if (state.transitions != null) {
-        for (Transition transition : state.transitions) { //  add all the events for this state
-          if (transition.nextState == null) {
-          new Trigger (events, transition.triggeringEvent)
-            .onTrue(Commands.runOnce(()->FSMfinished = true));
+      // if no transitions, that will be handled later as an exit whenComplete
+      if ( ! state.transitions.isEmpty()) {
+        for (Transition transition : state.transitions) { // add all the events for this state
+          var trigger = new Trigger (events, transition.triggeringEvent);
+          if (transition.nextState == null) { // external triggering StateMachine exit
+            trigger.onTrue(Commands.runOnce(()->exitStateMachine = true));
           }
           else {
-          new Trigger (events, transition.triggeringEvent)
-            .onTrue(transition.nextState.stateCommandAugmented);            
+            trigger.onTrue(transition.nextState.stateCommandAugmented); // external triggering next state           
           }
         }
       }
@@ -259,20 +265,21 @@ public class StateMachine extends Command {
     */
     @Override
     public void end(boolean interrupted) {
-      m_command.end(interrupted); // tell original command to end and if this wrapper was interrupted or not
+      m_command.end(interrupted); // tell original command to end and if interrupted or not
       if (!interrupted) {
-        completedNormally = state; // for internal trigger indicate state ended by itself without others help
+        completedNormally = state; // for internal trigger, indicate state ended by itself without others help
       }
-      stateCommandAugmentedPrevious = null; // indicate state ended (there is no effective previous to cancel)
+      stateCommandAugmentedPrevious = null; // indicate state ended (thus there is no longer a previous state to cancel)
       if (state.transitions.isEmpty()) {
-        FSMfinished = true; // tell StateMachine to end since this was last command to run (no exit transitions)
+        exitStateMachine = true; // tell StateMachine to end since there is nowhere to go
       }
-      //FIXME BROKEN -- really only want the transition for normal completion and not just any transition
-      else { // check if any transitions specified exiting
+      else {
         for (Transition transition : state.transitions) {
-          if (transition.nextState == null) {
-            FSMfinished = true;
-            break;
+          if (transition.triggeringEvent == null) { // found first whenComplete transition
+            if (transition.nextState == null) {
+              exitStateMachine = true; // specifies exiting
+            }
+          break; // don't look for any more whenComplete triggers - only the first one is used
           }
         }
       }
@@ -380,7 +387,7 @@ public class StateMachine extends Command {
    * class Transition is a Triggering external event to change to the next command (state)
    */
   private class Transition {
-    State nextState; // also, essentially the "key" to finding a state
+    State nextState; // if null, it's an exit machine; also, the "list key" to finding a state
     BooleanSupplier triggeringEvent;
 
     private Transition(State toNextState, BooleanSupplier whenEvent) {
