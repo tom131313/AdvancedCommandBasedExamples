@@ -24,9 +24,11 @@
  * output) there is significant overlap and depth in demonstrating style of using the 2025 advanced
  * addressable LED classes and methods.
  * 
- * Demonstration output is on seven sets of eight identical LEDs to show the program is operating;
- * operator input is Xbox controller. The other demonstrations outputs are the terminal console
- * "prints" and SmartDashboard.
+ * Demonstration output is on seven sets of eight (mostly) identical LEDs to show the program is
+ * operating; operator input is Xbox controller. The other demonstrations outputs are the terminal
+ * console "prints" and SmartDashboard.
+ * 
+ * Set the simulated LEDs to 56 length; yes running; 8 columns; Row Major; Upper Left and 7 high.
  *
  * 1. LED set 1 usage Top LEDView subsystem default blue.
  *  Autonomous mode command brown fast blink.
