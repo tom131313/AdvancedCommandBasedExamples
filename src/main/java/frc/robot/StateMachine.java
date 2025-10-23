@@ -28,14 +28,20 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * normally instead of being interrupted. Use "whenComplete()" to use that feature. Use "when()" for a
  * typical external trigger condition.
  * 
- * <p>Multiple transitions with the same conditions normally result in only the first transition being
- * used. An exception is the "exitStateMachine" tends to be ignored if its condition duplicates another.
- * It's best not to specify two different transitions with effectively the same condition; then it's
- * fully deterministic and obvious what is intended. Duplicate conditions may not behave exactly as the
- * 2027 WPILib implementation as it is structured very differently (better when using V3 instead of V2).
+ * <p>Multiple transitions with the same effective conditions are effectively undefined actions. Both
+ * transitions may be triggered in quick succession. An exception is the "exitStateMachine" which may
+ * tend to be * ignored if its condition duplicates another. WARNING - Do not specify two different
+ * transitions with effectively the same condition. Duplicate conditions in the V3 2027 WPILib
+ * implementation may behave better with the first one being the one that is used (V3 is structured
+ * very differently - better than V2).
  * 
- * <p>Any state without a transition is an exit state if entered and completes or hangs the stateMachine
- * if it doesn't complete. A purposeful exit can be coded with "somestate.exitStateMachine().when(somecondition);"
+ * <p>Note that there could be validation added for conditions to prevent the same condition object
+ * from being used but there is no way to prevent a different condition object that triggers on the
+ * same logic.
+ * 
+ * <p>Any state without a transition is an exit state if entered and completes; or hangs the
+ * stateMachine if it doesn't complete. A purposeful exit can be coded with
+ * "somestate.exitStateMachine().when(somecondition);"
  * 
  * <p>The StateMachine does not have an idle state. Any state entered and does nothing until interrupted
  * would be idle for its duration. Example idle state shown below could be used to keep the StateMachine
@@ -44,7 +50,8 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * <p>Command-Based classes are used to wrap the users commands and triggers in order to define the
  * FSM "cyclic" behavior.
  * 
- * <p>This code has incomplete validation to prevent all really bad parameters such as inappropriate nulls.
+ * <p>This code has incomplete validation to prevent all really bad parameters such as inappropriate
+ * nulls.
  * 
  *<pre><code>
  * {@literal /}**
