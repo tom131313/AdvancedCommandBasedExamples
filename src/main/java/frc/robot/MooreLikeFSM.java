@@ -63,7 +63,7 @@ public class MooreLikeFSM {
   /**
    * A Moore-Like FSM to display lights similar to the Knight Rider Kitt Scanner
    * 
-   * @param the LED View for the Scanner
+   * @param robotSignals the LED View for the Scanner
    * @param periodFactor Specify the speed of the Scanner (suggest about 10.0)
    * @param color Specify the color of the Scanner (suggest Color.kRed)
    */
