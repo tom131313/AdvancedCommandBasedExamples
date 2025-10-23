@@ -87,7 +87,7 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  *   
  *       return stateMachine;
  * }
- * createStateMachine.schedule();
+ * createStateMachine().schedule();
  *</code></pre>
  */
 public class StateMachine extends Command {
