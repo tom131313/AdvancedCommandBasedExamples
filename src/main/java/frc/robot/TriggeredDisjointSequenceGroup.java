@@ -35,7 +35,7 @@ Command test = TriggeredDisjointSequenceGroup.run(
     test4,
     // reusing command test1 (which is NOT a best practice) so it has to be
     // removed from the WrapperCommand group
-    runOnce(()->CommandScheduler.getInstance().removeComposedCommand(test1)),
+    runOnce(()-> CommandScheduler.getInstance().removeComposedCommand(test1)),
     test1);
 test.schedule();
 </code></pre>

@@ -89,7 +89,7 @@ public class MooreLikeFSM {
     var lightBar = new StateMachine("Kitt Light Bar Scanner");
 
     // first you need commands
-    Command count = Commands.runOnce(()->SmartDashboard.putNumber("light bar cycles", ++counter)).ignoringDisable(true);
+    Command count = Commands.runOnce(()-> SmartDashboard.putNumber("light bar cycles", ++counter)).ignoringDisable(true);
     Command activateLight1 = activateLight(LightState.Light1);
     Command activateLight2 = activateLight(LightState.Light2);
     Command activateLight3 = activateLight(LightState.Light3);
@@ -140,19 +140,23 @@ public class MooreLikeFSM {
     light5.switchTo(light6).when(period4);
     light6.switchTo(light7).when(period5);
     light7.switchTo(light8).when(period6);
-    light8.switchTo(light7).when(period7);
-    light8.exitStateMachine().when(period7); // test exit
+    light8.switchTo(light7).when(period7); // comment out to remove duplicate condition with the exit below
+    light8.exitStateMachine().when(period7); // test exit but if duplicate condition this is ignored
     light7.switchTo(light6).when(period8);
     light6.switchTo(light5).when(period9);
     light5.switchTo(light4).when(period10);
     light4.switchTo(light3).when(period11);
     light3.switchTo(light2).when(period12);
-    light2.switchTo(countCycles).when(period13); // awkward looking sequence but I didn't want light1 to be hit twice in a row and depend on the right clock timing
-    // There is no exit StateMachine defined so keep scanning until the FSM is cancelled.
+    light2.switchTo(countCycles).when(period13); // insert the counter between light2 then light1; awkward looking sequence but I didn't want light1 to be hit twice in a row and depend on the right clock timing
+    
+    // There is no exit StateMachine defined (unless comment/comment out the test statements) so keep scanning until the FSM is cancelled.
 
     // test StateMachine.toString() messages
     State idle = lightBar.addState("idle state", Commands.idle().ignoringDisable(true));
     light2.switchTo(idle).whenComplete();
+    var testHang = lightBar.addState("notRecommendedHang", Commands.idle());
+    var testExit = lightBar.addState("notRecommendedStop", Commands.none());
+    testHang.switchTo(testExit).whenComplete();
 
     System.out.println(lightBar);
 
@@ -193,7 +197,7 @@ public class MooreLikeFSM {
    * A simple cheat of the real Knight Rider Kitt Scanner which has a slowly
    * diminishing comet tail.  https://www.youtube.com/watch?v=usui7ECHPNQ
    * 
-   * @param index which LED to turn on
+   * @param light index of which LED to turn on
    * @param colorForeground color of the on LED
    * @param colorBackground color of the off LEDs
    * @return Pattern to apply to the LED view

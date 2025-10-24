@@ -346,7 +346,7 @@ public class GroupDisjointSequenceTest extends SubsystemBase {
     // Requirements added to the proxy group disjoint sequence are applied to the entire wrapped
     // sequence. Requirements come from the beforeStarting runOnce within this subsystem.
       return disjointSequence(allTests) // group wrapper command represents all the commands
-            .beforeStarting(runOnce(()->System.out.println("** starting disjoint sequence tests")))
+            .beforeStarting(runOnce(()-> System.out.println("** starting disjoint sequence tests")))
             .finallyDo(interrupted->System.out.println(
                 "** the end of disjoint sequence tests interrupted flag = "
                 + interrupted)

@@ -321,7 +321,7 @@ public class MooreLikeFSMMultiCommand extends SubsystemBase {
   {
     return
       new FunctionalCommand(
-        ()->{},
+        ()-> {},
 
         () -> // steady-state action
           {

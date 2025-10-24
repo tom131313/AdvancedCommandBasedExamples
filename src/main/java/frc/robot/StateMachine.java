@@ -66,8 +66,8 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  *       var stateMachine = new StateMachine("Example FSM");
  *
  *       // then you need commands
- *       Command cmd1 = Commands.runOnce(()->System.out.println("command 1 printed this one line.")).ignoringDisable(true);
- *       Command cmd2 = Commands.run(()->System.out.println("command 2 loops until interrupted."));
+ *       Command cmd1 = Commands.runOnce(()-> System.out.println("command 1 printed this one line.")).ignoringDisable(true);
+ *       Command cmd2 = Commands.run(()-> System.out.println("command 2 loops until interrupted."));
  *
  *       // next the commands create the states
  *       State state1 = stateMachine.addState("State 1", cmd1);
@@ -251,7 +251,7 @@ public class StateMachine extends Command {
         for (Transition transition : state.transitions) { // add all the events for this state
           var trigger = new Trigger (events, transition.triggeringEvent);
           if (transition.nextState == null) { // external triggering StateMachine exit
-            trigger.onTrue(Commands.runOnce(()->exitStateMachine = true));
+            trigger.onTrue(Commands.runOnce(()-> exitStateMachine = true));
           }
           else {
             trigger.onTrue(transition.nextState.stateCommandAugmented); // external triggering next state           
@@ -304,6 +304,7 @@ public class StateMachine extends Command {
 
     /**
      * creating a new State from a command
+     * @param name 
      * @param stateCommand
      */
     private State(String name, Command stateCommand) {
