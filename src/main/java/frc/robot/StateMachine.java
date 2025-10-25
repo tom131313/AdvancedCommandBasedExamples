@@ -323,9 +323,9 @@ public class StateMachine extends Command {
      * @param to The state to transition to. Cannot be null.
      * @return A builder for the transition.
      */
-    public NeedsConditionTransitionBuilder switchTo(State to) {
+    public TransitionNeedsConditionStage switchTo(State to) {
       requireNonNullParam(to, "to", "State.switchTo");
-      return new NeedsTargetTransitionBuilder(this).to(to);
+      return new TransitionNeedsTargetStage(this).to(to);
     }
 
     /**
@@ -334,18 +334,18 @@ public class StateMachine extends Command {
      *
      * @return A builder for the transition.
      */
-    public NeedsConditionTransitionBuilder exitStateMachine() {
-      return new NeedsConditionTransitionBuilder(this, null);
+    public TransitionNeedsConditionStage exitStateMachine() {
+      return new TransitionNeedsConditionStage(this, null);
     }
 
     /**
      * A builder for a transition from one state to another. Use {@link #to(State)} to specify the
      * target state to transition to.
      */
-    public final class NeedsTargetTransitionBuilder {
+    public final class TransitionNeedsTargetStage {
       private final State m_from;
 
-      private NeedsTargetTransitionBuilder(State from) {
+      private TransitionNeedsTargetStage(State from) {
         m_from = from;
       }
 
@@ -355,8 +355,8 @@ public class StateMachine extends Command {
        * @param to The state to transition to. Cannot be null.
        * @return A builder to specify the transition condition.
        */
-      private NeedsConditionTransitionBuilder to(State to) {
-        return new NeedsConditionTransitionBuilder(m_from, to);
+      private TransitionNeedsConditionStage to(State to) {
+        return new TransitionNeedsConditionStage(m_from, to);
       }
     } // end class NeedsTargetTransitionBuilder
 
@@ -366,11 +366,11 @@ public class StateMachine extends Command {
      * or use {@link #whenComplete()} to make the transition occur when the originating state
      * completes without having reached any other transitions first.
      */
-    public final class NeedsConditionTransitionBuilder {
+    public final class TransitionNeedsConditionStage {
       // private final State m_originatingState;
       private final State m_targetState;
 
-      private NeedsConditionTransitionBuilder(State from, State to) {
+      private TransitionNeedsConditionStage(State from, State to) {
         // m_originatingState = from;
         m_targetState = to;
       }
