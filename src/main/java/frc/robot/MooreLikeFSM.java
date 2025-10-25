@@ -133,6 +133,7 @@ public class MooreLikeFSM {
 
     // the conditions determine the state changes
     countCycles.switchTo(light1).whenComplete(); // assumes countCycles runs for less than the time period trigger for light1 else obvious delay
+    // countCycles.exitStateMachine().whenComplete(); // uncomment this line and comment out above to test exit when complete
     light1.switchTo(light2).when(period0);
     light2.switchTo(light3).when(period1);
     light3.switchTo(light4).when(period2);
@@ -140,8 +141,8 @@ public class MooreLikeFSM {
     light5.switchTo(light6).when(period4);
     light6.switchTo(light7).when(period5);
     light7.switchTo(light8).when(period6);
-    light8.switchTo(light7).when(period7); // comment out to remove duplicate condition with the exit below
-    light8.exitStateMachine().when(period7); // test exit but if duplicate condition this is ignored
+    light8.switchTo(light7).when(period7); // comment out to test exit below
+    // light8.exitStateMachine().when(period7); // uncomment to test exit
     light7.switchTo(light6).when(period8);
     light6.switchTo(light5).when(period9);
     light5.switchTo(light4).when(period10);
@@ -157,6 +158,9 @@ public class MooreLikeFSM {
     var testHang = lightBar.addState("notRecommendedHang", Commands.idle());
     var testExit = lightBar.addState("notRecommendedStop", Commands.none());
     testHang.switchTo(testExit).whenComplete();
+
+    // countCycles.exitStateMachine().whenComplete(); // uncomment to test throw error on duplicate object
+    // light2 .switchTo(idle).when(period1); // uncomment to test throw error on duplicate condition object
 
     System.out.println(lightBar);
 

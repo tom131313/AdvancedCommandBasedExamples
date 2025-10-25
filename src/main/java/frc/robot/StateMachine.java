@@ -15,33 +15,32 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 // @SuppressWarnings("unused")
 /**
- * Example of a Finite State Machine (FSM) using simple methods to build the FSM.
+ * Example of a Finite State Machine (FSM) using simple methods to build the FSM. The syntax is
+ * essentially similar to typical FSM documentation.
  * 
  * <p>Based on the user-facing appearance of Command-Based V3 (as of 10/2025).
  * 
- * <p>This is essentially the same as typical coding of Triggers with conditions and onTrue commands.
- * The benefit of this FSM implementation is not so much changing the names of the methods but the
- * state changing triggers exist only for the duration of the state instead of being a perpetual
- * part of the huge mass of triggers for the robot code.
+ * <p>This is similar to typical coding of Triggers with conditions and onTrue commands. A benefit
+ * of this FSM implementation is the state-changing triggers exist only for the duration of the state
+ * instead of being a perpetual part of the huge mass of triggers for the robot code.
  * 
  * <p>Another feature is an automatically created internal trigger for when a state command completes
  * normally instead of being interrupted. Use "whenComplete()" to use that feature. Use "when()" for a
  * typical external trigger condition.
  * 
  * <p>Multiple transitions with the same effective conditions are effectively undefined actions. Both
- * transitions may be triggered in quick succession. An exception is the "exitStateMachine" which may
- * tend to be * ignored if its condition duplicates another. WARNING - Do not specify two different
- * transitions with effectively the same condition. Duplicate conditions in the V3 2027 WPILib
- * implementation may behave better with the first one being the one that is used (V3 is structured
- * very differently - better than V2).
+ * transitions may be triggered in quick succession. There is validation to prevent using a condition
+ * object more than once but there is no way to verify using the effectively identical condition in
+ * more than one object. WARNING - Do not specify two different transitions with effectively the same
+ * condition. There is no way to prevent programmatically a different condition object that triggers
+ * on the same logic. The user must get this right.
  * 
- * <p>Note that there could be validation added for conditions to prevent the same condition object
- * from being used but there is no way to prevent a different condition object that triggers on the
- * same logic.
+ * <p>Duplicate conditions in the V3 2027 WPILib implementation may behave better but with the first
+ * one being the one that is used (V3 is structured very differently - better than V2).
  * 
  * <p>Any state without a transition is an exit state if entered and completes; or hangs the
  * stateMachine if it doesn't complete. A purposeful exit can be coded with
- * "somestate.exitStateMachine().when(somecondition);"
+ * "somestate.exitStateMachine().when(somecondition);" or "somestate.exitStateMachine().whenComplete();"
  * 
  * <p>The StateMachine does not have an idle state. Any state entered and does nothing until interrupted
  * would be idle for its duration. Example idle state shown below could be used to keep the StateMachine
@@ -50,8 +49,9 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * <p>Command-Based classes are used to wrap the users commands and triggers in order to define the
  * FSM "cyclic" behavior.
  * 
- * <p>This code has incomplete validation to prevent all really bad parameters such as inappropriate
- * nulls.
+ * <p>This code has incomplete validation to prevent all really bad parameters. There is some validation
+ * of inappropriate use of nulls and duplicate usage of condition objects for a single state. The
+ * anticipated V3 implementation has much better validation against things you shouldn't do.
  * 
  *<pre><code>
  * {@literal /}**
@@ -110,7 +110,6 @@ public class StateMachine extends Command {
   private State initialState = null; // user must call setInitialState
   private State completedNormally = null; // used for internal transition trigger whenComplete
   private Command stateCommandAugmentedPrevious = null; // need to know if previous is still running so can be cancelled on state transition
-
   public StateMachine(String name) {
     requireNonNullParam(name, "name", "StateMachine");
     this.name = name;
@@ -246,12 +245,12 @@ public class StateMachine extends Command {
         stateCommandAugmentedPrevious.cancel(); // wipe the previous state in case it didn't finish itself
       }
       // make triggers for all of the current state's transitions
-      // if no transitions, that will be handled later as an exit whenComplete
+      // if no transitions, that will be handled later as an exit but first need to run this state
       if ( ! state.transitions.isEmpty()) {
         for (Transition transition : state.transitions) { // add all the events for this state
-          var trigger = new Trigger (events, transition.triggeringEvent);
-          if (transition.nextState == null) { // external triggering StateMachine exit
-            trigger.onTrue(Commands.runOnce(()-> exitStateMachine = true));
+          var trigger = new Trigger (events, transition.triggeringEvent); // for .when(condition)
+          if (transition.nextState == null) { // for .exitStateMachine()
+            trigger.onTrue(Commands.runOnce(()-> exitStateMachine = true).ignoringDisable(true));
           }
           else {
             trigger.onTrue(transition.nextState.stateCommandAugmented); // external triggering next state           
@@ -273,20 +272,24 @@ public class StateMachine extends Command {
     @Override
     public void end(boolean interrupted) {
       m_command.end(interrupted); // tell original command to end and if interrupted or not
-      if (!interrupted) {
-        completedNormally = state; // for internal trigger, indicate state ended by itself without others help
-      }
-      stateCommandAugmentedPrevious = null; // indicate state ended (thus there is no longer a previous state to cancel)
-      if (state.transitions.isEmpty()) {
-        exitStateMachine = true; // tell StateMachine to end since there is nowhere to go
+
+      // setup for the next state or exit
+      stateCommandAugmentedPrevious = null; // indicate state already ended so there is not a previous state to cancel
+
+      if (state.transitions.isEmpty()) { // no transitions [no .when() nor .whenComplete()]
+        exitStateMachine = true; // no matter how this ended tell StateMachine to exit since nowhere to go from here
       }
       else {
-        for (Transition transition : state.transitions) {
-          if (transition.triggeringEvent == null) { // found first whenComplete transition
-            if (transition.nextState == null) {
-              exitStateMachine = true; // specifies exiting
+        if (!interrupted) {
+          completedNormally = state; // for internal trigger, indicate state ended by itself without others help
+          // see if this state has transition .exitStateMachine().whenComplete()
+          for (Transition transition : state.transitions) { // check all transitions
+            if (transition.triggeringEvent == state.whenCompleteCondition) { // for .whenComplete()
+              if (transition.nextState == null) { // for .exitStateMachine()
+                exitStateMachine = true;
+              }
+              break; // don't look for any more since cannot be more than one whenComplete trigger
             }
-          break; // don't look for any more whenComplete triggers - only the first one is used
           }
         }
       }
@@ -294,13 +297,14 @@ public class StateMachine extends Command {
   } // end class WrapState
 
   /**
-   * class State as a command with transitions (event + next state command)
+   * class State as a command with exit transitions (event + next state command)
    */
   public class State extends Command
   {
     private final String name;
-    Command stateCommandAugmented; // the Wrapped (instrumented) state command that will actually be run
-    List<Transition> transitions = new ArrayList<Transition>(); // the transitions for this State
+    private Command stateCommandAugmented; // the Wrapped (instrumented) state command that will actually be run
+    private List<Transition> transitions = new ArrayList<Transition>(); // the transitions for this State
+    private BooleanSupplier whenCompleteCondition = ()-> State.this == completedNormally; // internal trigger for command completion trigger
 
     /**
      * creating a new State from a command
@@ -377,6 +381,7 @@ public class StateMachine extends Command {
        * @param condition The condition that will trigger the transition.
        */
       public void when(BooleanSupplier condition) { // imply run until the external event then transition
+        checkDuplicateCondition(condition);
         transitions.add(new Transition(m_targetState, condition)); // wrap condition and add to the list a transition to this state
       }
 
@@ -385,9 +390,25 @@ public class StateMachine extends Command {
        * transitions first.
        */
       public void whenComplete() {
-        BooleanSupplier condition = ()-> State.this == completedNormally; // internal trigger for command completion trigger
-        transitions.add(new Transition(m_targetState, condition)); // wrap condition and add to the list a transition to this state
+        checkDuplicateCondition(whenCompleteCondition);
+        transitions.add(new Transition(m_targetState, whenCompleteCondition)); // wrap condition and add to the list a transition to this state
       }
+
+      /**
+       * Prevent a condition object from being used in more than one transition per state.
+       * 
+       * <p>This check cannot prevent effectively identical conditions in different objects from
+       * being used. The user must assure that two or more conditions in a state will not trigger
+       * at the same time. The results of two identical conditions are essentially undefined.
+       * @throws IllegalArgumentException if a condition object is reused in a single state.
+       */
+      private void checkDuplicateCondition(BooleanSupplier condition) {
+        for (Transition transition : transitions) {
+          if (transition.triggeringEvent == condition) {
+            throw new IllegalArgumentException("Condition object can be used only once per state.");
+          }
+        }
+    }
     } // end class NeedsConditionTransitionBuilder
   } // end class State
 
@@ -395,7 +416,7 @@ public class StateMachine extends Command {
    * class Transition is a Triggering external event to change to the next command (state)
    */
   private class Transition {
-    State nextState; // if null, it's an exit machine; also, the "list key" to finding a state
+    State nextState; // "list key" to finding a state; null means exit state machine 
     BooleanSupplier triggeringEvent;
 
     private Transition(State toNextState, BooleanSupplier whenEvent) {
