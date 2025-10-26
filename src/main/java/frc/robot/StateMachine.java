@@ -48,10 +48,10 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * 
  * <p>The StateMachine does not have an idle state. Any state entered and does nothing until interrupted
  * would be idle for its duration. Example idle state shown below could be used to keep the StateMachine
- * running so it does not end and would not need to be recreated for a restart.
+ * running so it does not end and would not need to be recreated, say from a factory, for a restart.
  * 
  * <p>Command-Based classes are used to wrap the users commands and triggers in order to define the
- * FSM "cyclic" behavior.
+ * FSM "cyclic" or "branching" behavior.
  * 
  * <p>This code has incomplete validation to prevent all really bad parameters. There is some validation
  * of inappropriate use of nulls and duplicate usage of condition objects and duplicate conditions in
@@ -72,34 +72,36 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  *
  *       // then you need commands
  *       Command cmd1 = Commands.runOnce(()-> System.out.println("command 1 printed this one line.")).ignoringDisable(true);
- *       Command cmd2 = Commands.run(()-> System.out.println("command 2 loops until interrupted."));
+ *       Command cmd2 = Commands.run(()-> System.out.println("command 2 loops until interrupted.")); // note this won't run disabled
  *
- *       // next the commands create the states
+ *       // next the commands are used to create the states
  *       State state1 = stateMachine.addState("State 1", cmd1);
  *       State state2 = stateMachine.addState("state 2", cmd2);
  *
- *       // require an initial state at some point before running
+ *       // require an initial state at some point before scheduling
  *       stateMachine.setInitialState(state1);
  *
- *       // then you need conditions
- *       // These are external conditions for the "when". The condition for "whenComplete" is internal
- *       // and implied by the use of that method.
+ *       // then you need conditions for state-changing triggers
+ *       // These are external conditions for the "when".
+ *       // The condition for "whenComplete" is internal and implied by the use of that method.
  *       BooleanSupplier condition1 = () -> (int) (Timer.getFPGATimestamp()*10. % 14.) == 0;
  *
- *       // the conditions determine the state changes
+ *       // the conditions determine when the states change
  *       state1.switchTo(state2).whenComplete();
  *       state2.switchTo(state1).when(condition1);
- *       state2.exitStateMachine.when(condition2); // optional exit
+ *       state2.exitStateMachine.when(condition2); // exit (end) the FSM - optional as needed for the FSM logic
  *
- *       // Examples of a (not recommended) stop state and idle state that could have been used (but were not)
+ *       // Example of a not recommended stop state that could have been used (but was not)
  *       State stop = stateMachine.addState("stop state", Commands.none().ignoringDisable(true)); // better to use "exitStateMachine"; test message
+ * 
+ *       // Example of an idle state that could have been used (but was not)
  *       State idle = stateMachine.addState("idle state", Commands.idle().ignoringDisable(true)); // test message
  *   
- *       System.out.println(stateMachine);
+ *       System.out.println(stateMachine); // optional use of the toString()
  *   
- *       return stateMachine;
+ *       return stateMachine; // the FSM command produced by this factory
  * }
- * createStateMachine().schedule();
+ * createStateMachine().schedule(); // scheduling the FSM starts it running immediately
  *</code></pre>
  */
 public class StateMachine extends Command {
@@ -108,21 +110,23 @@ public class StateMachine extends Command {
   // "ONE-TIME" SETUP THE STATE MACHINE
   /////////////////////////////////////
   
-  private String name;
-  private boolean exitStateMachine;
-  private EventLoop events = new EventLoop();
-  private List<State> states = new ArrayList<State>(); // All the states users instantiate is only used for printing the StateMachine - not in the logical flow
-  private State initialState = null; // user must call setInitialState
-  private State completedNormally = null; // used for internal transition trigger whenComplete
+  private String name = "not instantiated"; // name of the FSM
+  private boolean exitStateMachine = false; // flag signals if FSM is to exit (end)
+  private EventLoop events = new EventLoop(); // polled for triggers
+  private List<State> states = new ArrayList<State>(); // the instantiated states; only used for printing the StateMachine - not in the logical flow
+  private State initialState = null; // user must call setInitialState before scheduling the FSM
+  private State completedNormally = null; // flag for whenComplete() trigger
   private Command stateCommandAugmentedPrevious = null; // need to know if previous is still running so can be cancelled on state transition
-  private int countSimultaneousTransitions = 0;
+  private int countSimultaneousTransitions = 0; // check for multiple simultaneous transition triggers
+
   public StateMachine(String name) {
     requireNonNullParam(name, "name", "StateMachine");
     this.name = name;
   }
 
   /**
-   * Sets the initial state for the state machine.
+   * Sets the initial (start) state for the state machine.
+   * This state runs immediately after scheduling the state machine command.
    *
    * @param initialState The new initial state. Cannot be null.
    */
@@ -139,8 +143,7 @@ public class StateMachine extends Command {
    * @return the state
    */
   public State addState(String name, Command stateCommand) {
-    var state = new State(name, stateCommand);
-    return state;
+    return new State(name, stateCommand);
   }
 
   /**
@@ -190,8 +193,7 @@ public class StateMachine extends Command {
   /** Called once when the StateMachine command is scheduled. */
   public void initialize() {
     exitStateMachine = false;
-    events.clear(); // make sure clear in case there would be a race between the execute poll and the next command clear (maybe used if FSM can start/stop which it can't right now)
-    new ScheduleCommand(initialState.stateCommandAugmented).schedule();
+    initialState.stateCommandAugmented.schedule();
   }
 
   /** Called repeatedly while the StateMachine is running to check for triggering events. */
@@ -201,7 +203,7 @@ public class StateMachine extends Command {
       DriverStation.reportWarning("Multiple states triggered simultaneously", false);
     }
     countSimultaneousTransitions = 0;
-    events.poll(); // check for events that can trigger transitions out of this state
+    events.poll(); // check for events that trigger transitions
   }
 
   /**
@@ -244,9 +246,9 @@ public class StateMachine extends Command {
     }
 
     /**
-     * We're here because somebody scheduled us and we are running.
-     * The initial state was scheduled when the StateMachine started.
-     * All the rest of the states that run must be scheduled by an event.
+     * This is the beginning of a running state because somebody scheduled it.
+     * [The initial (start) state was scheduled when the StateMachine started.
+     * All the rest of the states that run must be scheduled by an event.]
      */
     @Override
     public void initialize() {
@@ -254,31 +256,30 @@ public class StateMachine extends Command {
       if(stateCommandAugmentedPrevious != null) {
         stateCommandAugmentedPrevious.cancel(); // wipe the previous state in case it didn't finish itself
       }
-      // make triggers for all of the current state's transitions
+      // make triggers for all of this state's transitions
       // if no transitions, that will be handled later as an exit but first need to run this state
       if ( ! state.transitions.isEmpty()) {
         for (Transition transition : state.transitions) { // add all the events for this state
-          var trigger = new Trigger (events, transition.triggeringEvent); // for .when(condition)
-          if (transition.nextState == null) { // for .exitStateMachine()
-            trigger.onTrue(Commands.runOnce(()-> exitStateMachine = true).ignoringDisable(true));
-            trigger.onTrue(Commands.runOnce(()-> ++countSimultaneousTransitions).ignoringDisable(true)); // check erroneous multiple identical conditions
+          var trigger = new Trigger (events, transition.triggeringEvent); // for .when(condition) and .whenComplete()
+          trigger.onTrue(Commands.runOnce(()-> ++countSimultaneousTransitions).ignoringDisable(true)); // for check erroneous multiple identical conditions
+          if (transition.nextState == null) { // condition for .exitStateMachine()
+            trigger.onTrue(Commands.runOnce(()-> exitStateMachine = true).ignoringDisable(true)); // flag to exit (end) FSM
           }
-          else {
-            trigger.onTrue(transition.nextState.stateCommandAugmented); // external triggering next state           
-            trigger.onTrue(Commands.runOnce(()-> ++countSimultaneousTransitions).ignoringDisable(true)); // check erroneous multiple identical conditions
+          else { // condition to trigger next state
+            trigger.onTrue(transition.nextState.stateCommandAugmented); // start next state
           }
         }
       }
 
-      completedNormally = null; // reset internal trigger for this new state
-      stateCommandAugmentedPrevious = this;
+      completedNormally = null; // reset flag for this new state as it has not yet completed normally 'cuz it's just starting
+      stateCommandAugmentedPrevious = this; // for next state change this will be the previous state
 
       m_command.initialize(); // Wrapper is done with its fussing so tell original command to initialize
     }
 
   /**
     * The action to take when the command ends. Called when either the command finishes normally, or
-    * when it interrupted/canceled.
+    * when it is interrupted/canceled.
     * @param interrupted whether the command was interrupted/canceled
     */
     @Override
@@ -289,11 +290,11 @@ public class StateMachine extends Command {
       stateCommandAugmentedPrevious = null; // indicate state already ended so there is not a previous state to cancel
 
       if (state.transitions.isEmpty()) { // no transitions [no .when() nor .whenComplete()]
-        exitStateMachine = true; // no matter how this ended tell StateMachine to exit since nowhere to go from here
+        exitStateMachine = true; // no matter how this state ended tell StateMachine to exit since nowhere to go from here
       }
       else {
         if (!interrupted) {
-          completedNormally = state; // for internal trigger, indicate state ended by itself without others help
+          completedNormally = state; // indicate state ended by itself without others help
           // see if this state has transition .exitStateMachine().whenComplete()
           for (Transition transition : state.transitions) { // check all transitions
             if (transition.triggeringEvent == state.whenCompleteCondition) { // for .whenComplete()
@@ -316,7 +317,7 @@ public class StateMachine extends Command {
     private final String name;
     private Command stateCommandAugmented; // the Wrapped (instrumented) state command that will actually be run
     private List<Transition> transitions = new ArrayList<Transition>(); // the transitions for this State
-    private BooleanSupplier whenCompleteCondition = ()-> State.this == completedNormally; // internal trigger for command completion trigger
+    private BooleanSupplier whenCompleteCondition = ()-> State.this == completedNormally; // trigger condition for whenComplete
 
     /**
      * creating a new State from a command
@@ -392,7 +393,7 @@ public class StateMachine extends Command {
        *
        * @param condition The condition that will trigger the transition.
        */
-      public void when(BooleanSupplier condition) { // imply run until the external event then transition
+      public void when(BooleanSupplier condition) {
         checkDuplicateCondition(condition);
         transitions.add(new Transition(m_targetState, condition)); // wrap condition and add to the list a transition to this state
       }
@@ -411,7 +412,9 @@ public class StateMachine extends Command {
        * 
        * <p>This check cannot prevent effectively identical conditions in different objects from
        * being used. The user must assure that two or more conditions in a state will not trigger
-       * at the same time. The results of two identical conditions are essentially undefined.
+       * at the same time. The result of two identical conditions is essentially undefined. There
+       * is an attempt to detect but not prevent this condition at runtime.
+       * 
        * @throws IllegalArgumentException if a condition object is reused in a single state.
        */
       private void checkDuplicateCondition(BooleanSupplier condition) {
@@ -420,17 +423,23 @@ public class StateMachine extends Command {
             throw new IllegalArgumentException("Condition object can be used only once per state.");
           }
         }
-    }
+      }
     } // end class NeedsConditionTransitionBuilder
   } // end class State
 
   /**
-   * class Transition is a Triggering external event to change to the next command (state)
+   * Transition is a triggering event causes a change from the current state to the next state
    */
   private class Transition {
-    State nextState; // "list key" to finding a state; null means exit state machine 
+    State nextState;
     BooleanSupplier triggeringEvent;
 
+    /**
+     * Define the FSM transition as current state + triggering even -> next state
+     * 
+     * @param toNextState next state or null means exit state machine (no next state)
+     * @param whenEvent the when and whenComplete conditions
+     */
     private Transition(State toNextState, BooleanSupplier whenEvent) {
       this.nextState = toNextState;
       this.triggeringEvent = whenEvent; 
