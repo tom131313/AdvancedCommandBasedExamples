@@ -127,6 +127,7 @@ public class MooreLikeFSM {
     BooleanSupplier period11 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 11;
     BooleanSupplier period12 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 12;
     BooleanSupplier period13 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 13;
+    BooleanSupplier period13B = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 13; // test multiple (incorrect) simultaneous transitions
 
     // need an initial state at some point before running
     lightBar.setInitialState(countCycles);
@@ -149,6 +150,7 @@ public class MooreLikeFSM {
     light4.switchTo(light3).when(period11);
     light3.switchTo(light2).when(period12);
     light2.switchTo(countCycles).when(period13); // insert the counter between light2 then light1; awkward looking sequence but I didn't want light1 to be hit twice in a row and depend on the right clock timing
+    light2.switchTo(countCycles).when(period13B); // test multiple (incorrect) simultaneous transitions (same effective condition used more than once per state)
     
     // There is no exit StateMachine defined (unless comment/comment out the test statements) so keep scanning until the FSM is cancelled.
 

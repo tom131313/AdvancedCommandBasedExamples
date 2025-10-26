@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.event.EventLoop;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -30,10 +31,13 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * 
  * <p>Multiple transitions with the same effective conditions are effectively undefined actions. Both
  * transitions may be triggered in quick succession. There is validation to prevent using a condition
- * object more than once but there is no way to verify using the effectively identical condition in
+ * object more than once but there is no way to prevent using the effectively identical condition in
  * more than one object. WARNING - Do not specify two different transitions with effectively the same
  * condition. There is no way to prevent programmatically a different condition object that triggers
- * on the same logic. The user must get this right.
+ * on the same logic. The user must get this right. A warning message is attempted to be provided if
+ * there are multiple transitions triggered simultaneously by different but functionally identical
+ * conditions. (Providing a replacement event polling mechanism could prevent this occurrence but this
+ * code is trying to use standard WPILib Command-Based V2 functions.)
  * 
  * <p>Duplicate conditions in the V3 2027 WPILib implementation may behave better but with the first
  * one being the one that is used (V3 is structured very differently - better than V2).
@@ -50,8 +54,9 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * FSM "cyclic" behavior.
  * 
  * <p>This code has incomplete validation to prevent all really bad parameters. There is some validation
- * of inappropriate use of nulls and duplicate usage of condition objects for a single state. The
- * anticipated V3 implementation has much better validation against things you shouldn't do.
+ * of inappropriate use of nulls and duplicate usage of condition objects and duplicate conditions in
+ * different objects for a single state. The anticipated V3 implementation has much better validation
+ * against things you shouldn't do.
  * 
  *<pre><code>
  * {@literal /}**
@@ -110,6 +115,7 @@ public class StateMachine extends Command {
   private State initialState = null; // user must call setInitialState
   private State completedNormally = null; // used for internal transition trigger whenComplete
   private Command stateCommandAugmentedPrevious = null; // need to know if previous is still running so can be cancelled on state transition
+  private int countSimultaneousTransitions = 0;
   public StateMachine(String name) {
     requireNonNullParam(name, "name", "StateMachine");
     this.name = name;
@@ -191,6 +197,10 @@ public class StateMachine extends Command {
   /** Called repeatedly while the StateMachine is running to check for triggering events. */
   @Override
   public void execute() {
+    if (countSimultaneousTransitions > 1) {
+      DriverStation.reportWarning("Multiple states triggered simultaneously", false);
+    }
+    countSimultaneousTransitions = 0;
     events.poll(); // check for events that can trigger transitions out of this state
   }
 
@@ -251,9 +261,11 @@ public class StateMachine extends Command {
           var trigger = new Trigger (events, transition.triggeringEvent); // for .when(condition)
           if (transition.nextState == null) { // for .exitStateMachine()
             trigger.onTrue(Commands.runOnce(()-> exitStateMachine = true).ignoringDisable(true));
+            trigger.onTrue(Commands.runOnce(()-> ++countSimultaneousTransitions).ignoringDisable(true)); // check erroneous multiple identical conditions
           }
           else {
             trigger.onTrue(transition.nextState.stateCommandAugmented); // external triggering next state           
+            trigger.onTrue(Commands.runOnce(()-> ++countSimultaneousTransitions).ignoringDisable(true)); // check erroneous multiple identical conditions
           }
         }
       }
