@@ -127,15 +127,12 @@ public class MooreLikeFSM {
     BooleanSupplier period11 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 11;
     BooleanSupplier period12 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 12;
     BooleanSupplier period13 = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 13;
-    @SuppressWarnings("unused")
-    BooleanSupplier period13B = () -> (int) (Timer.getFPGATimestamp()*m_periodFactor % m_numberPeriods) == 13; // test multiple (incorrect) simultaneous transitions
 
     // need an initial state at some point before running
     lightBar.setInitialState(countCycles);
 
     // the conditions determine the state changes
     countCycles.switchTo(light1).whenComplete(); // assumes countCycles runs for less than the time period trigger for light1 else obvious delay
-    // countCycles.exitStateMachine().whenComplete(); // uncomment this line and comment out above to test exit when complete
     light1.switchTo(light2).when(period0);
     light2.switchTo(light3).when(period1);
     light3.switchTo(light4).when(period2);
@@ -143,29 +140,17 @@ public class MooreLikeFSM {
     light5.switchTo(light6).when(period4);
     light6.switchTo(light7).when(period5);
     light7.switchTo(light8).when(period6);
-    light8.switchTo(light7).when(period7); // comment out to test exit below
-    // light8.exitStateMachine().when(period7); // uncomment to test exit
+    light8.switchTo(light7).when(period7);
     light7.switchTo(light6).when(period8);
     light6.switchTo(light5).when(period9);
     light5.switchTo(light4).when(period10);
     light4.switchTo(light3).when(period11);
     light3.switchTo(light2).when(period12);
     light2.switchTo(countCycles).when(period13); // insert the counter between light2 then light1; awkward looking sequence but I didn't want light1 to be hit twice in a row and depend on the right clock timing
-    // light2.switchTo(countCycles).when(period13B); // uncomment to test multiple (incorrect) simultaneous transitions (same effective condition used more than once per state)
     
-    // There is no exit StateMachine defined (unless comment/comment out the test statements) so keep scanning until the FSM is cancelled.
+    // There is no exitStateMachine defined so keep scanning until the FSM is cancelled.
 
-    // test StateMachine.toString() messages
-    State idle = lightBar.addState("idle state", Commands.idle().ignoringDisable(true));
-    light2.switchTo(idle).whenComplete();
-    var testHang = lightBar.addState("notRecommendedHang", Commands.idle());
-    var testExit = lightBar.addState("notRecommendedStop", Commands.none());
-    testHang.switchTo(testExit).whenComplete();
-
-    // countCycles.exitStateMachine().whenComplete(); // uncomment to test throw error on duplicate object
-    // light2.switchTo(idle).when(period1); // uncomment to test throw error on duplicate condition object
-
-    System.out.println(lightBar);
+    System.out.println(lightBar); // test StateMachine.toString() messages
 
     return lightBar;
   }

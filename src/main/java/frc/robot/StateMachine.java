@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.event.EventLoop;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -168,8 +169,8 @@ public class StateMachine extends Command {
       boolean noExits = true; // initially haven't found any
       boolean noEntrances = true; // initially haven't found any
 
-      sb.append("-------" + state.name + "-------" + (state == initialState ? " INITIAL STATE\n" : "\n"));
-
+      sb.append("-------" + state.name + "-------\n");
+      sb.append(state == initialState ? "INITIAL STATE\n" : "");
       // loop through all the transitions of this state
       for (Transition transition : state.transitions) {
         noExits = false; // at least one transition out of this state
@@ -188,8 +189,8 @@ public class StateMachine extends Command {
         }
       }
       sb.append(
-        (noEntrances?"Caution - State has no entrances and will not be used.\n\n":
-        noExits?"Notice - State has no exits and if entered will either stop or hang the StateMachine command.\n\n":"\n"));
+        (noEntrances && state != initialState ? "Caution - State has no entrances and will not be used.\n\n" :
+        noExits ? "Notice - State has no exits and if entered will either stop or hang the StateMachine command.\n\n" : "\n"));
     }
     return sb.toString();
   }
@@ -199,6 +200,7 @@ public class StateMachine extends Command {
   /////////////////////////////////////////////////////
  
   /** Called once when the StateMachine command is scheduled. */
+  @Override
   public void initialize() {
     exitStateMachine = false;
     initialState.stateCommandAugmented.schedule();
@@ -453,4 +455,90 @@ public class StateMachine extends Command {
       this.triggeringEvent = whenEvent; 
     }
   } // end class Transition
+
+  /**
+   * Another StateMachine test
+   * <p>uses digital input 0 for some state changes
+   * <p>usage:
+   * <pre><code>
+   * StateMachine.StateMachineTest.testFSM().schedule();
+   * </code></pre>
+   */
+  public class StateMachineTest extends Command {
+      private int count;
+      private String name;
+  
+      public StateMachineTest(String name) {
+          this.name = name;
+      }
+  
+      @Override
+      public void initialize() {
+          count = 0;
+          System.out.println(name + " " + count + " initialize");
+      }
+  
+      @Override
+      public void execute() {
+          ++count;
+          System.out.println(name + " " + count);
+      }
+      
+      @Override
+      public void end(boolean interrupt) {
+          System.out.println(name + " " + count + " end");
+      }
+  
+      @Override
+      public boolean isFinished() {
+          if (name.startsWith("unlimited")) {
+              return false;
+          }
+          else {
+              return count >= 10;            
+          }
+      }
+  
+      @Override
+      public boolean runsWhenDisabled() {
+        return true;
+      }
+  
+      static DigitalInput di = new DigitalInput(0);
+      
+      public static Command testFSM() {
+          StateMachine tester = new StateMachine("test machine");
+  
+          State state1 = tester.addState("state1", tester.new StateMachineTest("command1"));
+          State state2 = tester.addState("state2", tester.new StateMachineTest("command2"));
+          State state3 = tester.addState("state3", tester.new StateMachineTest("command3"));
+          State state4 = tester.addState("state4", tester.new StateMachineTest("command4"));
+  
+          State state5 = tester.addState("state5", tester.new StateMachineTest("unlimited5"));
+          State state6 = tester.addState("state6", tester.new StateMachineTest("unlimited6"));
+  
+          State state7 = tester.addState("state7", tester.new StateMachineTest("command7"));
+
+          state1.switchTo(state2).whenComplete();
+          // state1.exitStateMachine().whenComplete(); // uncomment to test throw error on duplicate condition object
+          state2.switchTo(state3).whenComplete();
+          state3.switchTo(state4).whenComplete();
+          state4.switchTo(state5).whenComplete();
+  
+          BooleanSupplier condition1 = ()-> di.get();
+          @SuppressWarnings("unused")
+          BooleanSupplier condition2 = ()-> di.get();
+          state5.switchTo(state6).when(condition1);
+          // state5.switchTo(state7).when(condition2); // uncomment to test run time multiple triggers warning message on change of di 0 from low to high; results are bad and vary; don't do this
+          // state5.switchTo(state7).when(condition1); // uncomment to test throw error on duplicate condition object
+          state6.switchTo(state7).when(condition1);
+  
+          state7.exitStateMachine().whenComplete();
+
+          tester.setInitialState(state1);
+
+          System.out.println(tester);
+          return tester.ignoringDisable(true);
+      }
+  } // end class StateMachineTest
 } // end class StateMachine
