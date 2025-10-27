@@ -10,7 +10,6 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.event.EventLoop;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.ScheduleCommand;
 import edu.wpi.first.wpilibj2.command.WrapperCommand;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 
@@ -51,12 +50,21 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  * running so it does not end and would not need to be recreated, say from a factory, for a restart.
  * 
  * <p>Command-Based classes are used to wrap the users commands and triggers in order to define the
- * FSM "cyclic" or "branching" behavior.
+ * FSM "cyclic" or "branching" behavior. The general flow is: the user builds the StateMachine with
+ * states and transition conditions that trigger the next state. StateMachine command initialize
+ * schedules the initial (start) state. The StateMachineCommand execute polls the event loop looking
+ * to start the next the command for the next state. The next state (of the initial state) initialize
+ * cleans up the previous state and builds its event triggers. A special variable indicates if a state
+ * has completed normally. A special variable indicates if the StateMachine is the exit (end).
  * 
  * <p>This code has incomplete validation to prevent all really bad parameters. There is some validation
- * of inappropriate use of nulls and duplicate usage of condition objects and duplicate conditions in
+ * of inappropriate use of nulls, duplicate usage of condition objects, and duplicate conditions in
  * different objects for a single state. The anticipated V3 implementation has much better validation
  * against things you shouldn't do.
+ * 
+ * <p>Some of the transition builder code was copied from an early version of the V3 StateMachine and
+ * may have some statements that aren't pertinent to this V2 implementation. Some of it has been
+ * changed already for V3 but wasn't changed herein for V2.
  * 
  *<pre><code>
  * {@literal /}**
@@ -435,7 +443,7 @@ public class StateMachine extends Command {
     BooleanSupplier triggeringEvent;
 
     /**
-     * Define the FSM transition as current state + triggering even -> next state
+     * Define the FSM transition as current state + triggering event -> next state
      * 
      * @param toNextState next state or null means exit state machine (no next state)
      * @param whenEvent the when and whenComplete conditions
