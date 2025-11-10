@@ -98,7 +98,7 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
  *       // the conditions determine when the states change
  *       state1.switchTo(state2).whenComplete();
  *       state2.switchTo(state1).when(condition1);
- *       state2.exitStateMachine.when(condition2); // exit (end) the FSM - optional as needed for the FSM logic
+ *       state2.exitStateMachine().when(condition2); // exit (end) the FSM - optional as needed for the FSM logic
  *
  *       // Example of a not recommended stop state that could have been used (but was not)
  *       State stop = stateMachine.addState("stop state", Commands.none().ignoringDisable(true)); // better to use "exitStateMachine"; test message
@@ -122,7 +122,7 @@ public class StateMachine extends Command {
   private String name = "not instantiated"; // name of the FSM
   private boolean exitStateMachine = false; // flag signals if FSM is to exit (end)
   private EventLoop events = new EventLoop(); // polled for triggers
-  private List<State> states = new ArrayList<State>(); // the instantiated states; only used for printing the StateMachine - not in the logical flow
+  private final List<State> states = new ArrayList<>(); // the instantiated states
   private State initialState = null; // user must call setInitialState before scheduling the FSM
   private State completedNormally = null; // flag for whenComplete() trigger
   private Command stateCommandAugmentedPrevious = null; // need to know if previous is still running so can be cancelled on state transition
@@ -156,6 +156,134 @@ public class StateMachine extends Command {
   }
 
   /**
+   * Sets up a transition from any of the given states to a specific state. If no states are given,
+   * the transition will apply to all states in the state machine <i>at the time this method is
+   * called</i>.
+   *
+   * <pre>{@code
+   * stateMachine.switchFromAny(state1, state2, state3).to(state4).when(() -> foo == true);
+   *
+   * // Functionally equivalent to:
+   * state1.switchTo(state4).when(() -> foo == true);
+   * state2.switchTo(state4).when(() -> foo == true);
+   * state3.switchTo(state4).when(() -> foo == true);
+   *
+   * // Set up an early exit condition from any state
+   * stateMachine.switchFromAny().toExitStateMachine().when(() -> bar == true);
+   *
+   * // Functionally equivalent to:
+   * state1.exitStateMachine().when(() -> bar == true);
+   * state2.exitStateMachine().when(() -> bar == true);
+   * state3.exitStateMachine().when(() -> bar == true);
+   * state4.exitStateMachine().when(() -> bar == true);
+   * }</pre>
+   *
+   * @param states The states to transition from.
+   * @return A builder for the transition.
+   */
+  public TransitionNeedsTargetStage switchFromAny(State... states) {
+    if (states.length == 0) {
+      return new TransitionNeedsTargetStage(List.copyOf(this.states));
+    } else {
+      return this.new TransitionNeedsTargetStage(List.of(states));
+    }
+  }
+
+    /**
+     * A builder for a transition from one state to another. Use {@link #to(State)} to specify the
+     * target state to transition to.
+     */
+    public final class TransitionNeedsTargetStage {
+      private final List<State> m_from;
+
+      private TransitionNeedsTargetStage(List<State> from) {
+        m_from = from;
+      }
+
+      /**
+       * Specifies the target state to transition to.
+       *
+       * @param to The state to transition to. Cannot be null.
+       * @return A builder to specify the transition condition.
+       */
+      private TransitionNeedsConditionStage to(State to) {
+        return new TransitionNeedsConditionStage(m_from, to);
+      }
+ 
+    /**
+     * Specifies the transition will exit the state machine when triggered, rather than moving to a
+     * different state.
+     *
+     * @return A builder to specify the transition condition.
+     */
+    public TransitionNeedsConditionStage toExitStateMachine() {
+      return new TransitionNeedsConditionStage(m_from, null);
+    }
+    } // end class NeedsTargetTransitionBuilder
+
+    /**
+     * A builder to set conditions for a transition from one state to another. Use {@link
+     * #when(BooleanSupplier)} to make the transition occur when some external condition becomes true,
+     * or use {@link #whenComplete()} to make the transition occur when the originating state
+     * completes without having reached any other transitions first.
+     */
+    public final class TransitionNeedsConditionStage {
+      private final List<State> m_originatingStates;
+
+    // Note: a null value here indicates that the transition will cause the state machine to exit
+    private final State m_targetState;
+
+      private TransitionNeedsConditionStage(List<State> from, State to) {
+        m_originatingStates = from;
+        m_targetState = to;
+      }
+
+      /**
+       * Adds a transition that will be triggered when the specified condition is true.
+       *
+       * @param condition The condition that will trigger the transition.
+       */
+      public void when(BooleanSupplier condition) {
+        var transition = new Transition(m_targetState, condition);
+        m_originatingStates.forEach(originatingState -> {
+          checkDuplicateCondition(originatingState, condition);
+          originatingState.transitions.add(transition); // wrap condition and add to the list a transition to this state
+          });
+      }
+
+      /**
+       * Marks the transition when the originating state completes without having reached any other
+       * transitions first.
+       */
+      public void whenComplete() {
+        m_originatingStates.forEach(originatingState -> {
+          checkDuplicateCondition(originatingState, originatingState.whenCompleteCondition);
+          var transition = new Transition(m_targetState, originatingState.whenCompleteCondition);
+          originatingState.transitions.add(transition); // wrap condition and add to the list a transition to this state
+        });
+      }
+
+      /**
+       * Prevent a condition object from being used in more than one transition per state.
+       * 
+       * <p>This check cannot prevent effectively identical conditions in different objects from
+       * being used. The user must assure that two or more conditions in a state will not trigger
+       * at the same time. The result of two identical conditions is essentially undefined. There
+       * is an attempt to detect but not prevent this condition at runtime.
+       * 
+       * @throws IllegalArgumentException if a condition object is reused in a single state.
+       */
+      private void checkDuplicateCondition(State originatingState, BooleanSupplier condition) {
+        for (Transition transition : originatingState.transitions) {
+          if (transition.triggeringEvent == condition) {
+            throw new IllegalArgumentException("Condition object can be used only once per state.");
+          }
+        }
+      }
+    } // end class NeedsConditionTransitionBuilder
+
+
+  /**
    * Print State and Transition information about the StateMachine
    * 
    * @return String of StateMachine information
@@ -169,7 +297,7 @@ public class StateMachine extends Command {
       boolean noExits = true; // initially haven't found any
       boolean noEntrances = true; // initially haven't found any
 
-      sb.append("-------" + state.name + "-------\n");
+      sb.append("------- " + state.name + " -------\n");
       sb.append(state == initialState ? "INITIAL STATE\n" : "");
       // loop through all the transitions of this state
       for (Transition transition : state.transitions) {
@@ -348,7 +476,7 @@ public class StateMachine extends Command {
      */
     public TransitionNeedsConditionStage switchTo(State to) {
       requireNonNullParam(to, "to", "State.switchTo");
-      return new TransitionNeedsTargetStage(this).to(to);
+      return new TransitionNeedsTargetStage(List.of(this)).to(to);
     }
 
     /**
@@ -358,83 +486,8 @@ public class StateMachine extends Command {
      * @return A builder for the transition.
      */
     public TransitionNeedsConditionStage exitStateMachine() {
-      return new TransitionNeedsConditionStage(this, null);
+      return new TransitionNeedsConditionStage(List.of(this), null);
     }
-
-    /**
-     * A builder for a transition from one state to another. Use {@link #to(State)} to specify the
-     * target state to transition to.
-     */
-    public final class TransitionNeedsTargetStage {
-      private final State m_from;
-
-      private TransitionNeedsTargetStage(State from) {
-        m_from = from;
-      }
-
-      /**
-       * Specifies the target state to transition to.
-       *
-       * @param to The state to transition to. Cannot be null.
-       * @return A builder to specify the transition condition.
-       */
-      private TransitionNeedsConditionStage to(State to) {
-        return new TransitionNeedsConditionStage(m_from, to);
-      }
-    } // end class NeedsTargetTransitionBuilder
-
-    /**
-     * A builder to set conditions for a transition from one state to another. Use {@link
-     * #when(BooleanSupplier)} to make the transition occur when some external condition becomes true,
-     * or use {@link #whenComplete()} to make the transition occur when the originating state
-     * completes without having reached any other transitions first.
-     */
-    public final class TransitionNeedsConditionStage {
-      // private final State m_originatingState;
-      private final State m_targetState;
-
-      private TransitionNeedsConditionStage(State from, State to) {
-        // m_originatingState = from;
-        m_targetState = to;
-      }
-
-      /**
-       * Adds a transition that will be triggered when the specified condition is true.
-       *
-       * @param condition The condition that will trigger the transition.
-       */
-      public void when(BooleanSupplier condition) {
-        checkDuplicateCondition(condition);
-        transitions.add(new Transition(m_targetState, condition)); // wrap condition and add to the list a transition to this state
-      }
-
-      /**
-       * Marks the transition when the originating state completes without having reached any other
-       * transitions first.
-       */
-      public void whenComplete() {
-        checkDuplicateCondition(whenCompleteCondition);
-        transitions.add(new Transition(m_targetState, whenCompleteCondition)); // wrap condition and add to the list a transition to this state
-      }
-
-      /**
-       * Prevent a condition object from being used in more than one transition per state.
-       * 
-       * <p>This check cannot prevent effectively identical conditions in different objects from
-       * being used. The user must assure that two or more conditions in a state will not trigger
-       * at the same time. The result of two identical conditions is essentially undefined. There
-       * is an attempt to detect but not prevent this condition at runtime.
-       * 
-       * @throws IllegalArgumentException if a condition object is reused in a single state.
-       */
-      private void checkDuplicateCondition(BooleanSupplier condition) {
-        for (Transition transition : transitions) {
-          if (transition.triggeringEvent == condition) {
-            throw new IllegalArgumentException("Condition object can be used only once per state.");
-          }
-        }
-      }
-    } // end class NeedsConditionTransitionBuilder
   } // end class State
 
   /**
@@ -458,7 +511,7 @@ public class StateMachine extends Command {
 
   /**
    * Another StateMachine test
-   * <p>uses digital input 0 for some state changes
+   * <p>uses digital inputs 0, 1, and 2 for some state changes
    * <p>usage:
    * <pre><code>
    * StateMachine.StateMachineTest.testFSM().schedule();
@@ -505,6 +558,8 @@ public class StateMachine extends Command {
       }
   
       static DigitalInput di = new DigitalInput(0);
+      static DigitalInput diExit = new DigitalInput(1);
+      static DigitalInput diQuitUnlimited = new DigitalInput(2);
       
       public static Command testFSM() {
           StateMachine tester = new StateMachine("test machine");
@@ -537,7 +592,13 @@ public class StateMachine extends Command {
 
           tester.setInitialState(state1);
 
+          // set up identical transitions to a state from selected states
+          tester.switchFromAny(state5, state6).to(state7).when(() -> diQuitUnlimited.get());
+          // Set up identical exit transitions from all addState executed before this statement is executed
+          tester.switchFromAny().toExitStateMachine().when(() -> diExit.get());
+
           System.out.println(tester);
+
           return tester.ignoringDisable(true);
       }
   } // end class StateMachineTest
