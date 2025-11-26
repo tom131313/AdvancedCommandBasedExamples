@@ -69,7 +69,8 @@ public class CommandSchedulerLog
      * Convert recording to csv and they show nicely in Excel.
      * 
      * <p>If using DataLog tool, the recording is via NT so tell NT to send EVERYTHING to the DataLog.
-     * Run DataLog tool to retrieve log from roboRIO and convert the log to a csv table.
+     * Run DataLog tool to retrieve log from roboRIO and convert the log to a csv table that may be
+     * viewed nicely in Excel.
      * 
      * <p>Note the comment in execute logging that only the first execute is logged unless changed.
      * 
@@ -88,10 +89,10 @@ public class CommandSchedulerLog
 
         // DataLog via NT so establish NT and the connection to DataLog
         if (useDataLog) {
-            DataLogManager.logNetworkTables(true); // WARNING - this puts all NT to the DataLog
+            DataLogManager.logNetworkTables(true); // CAUTION - this puts all NT to the DataLog
         }
 
-        final String networkTableName = "Team4237";
+        final String networkTableName = "Team4237"; //FIXME change to your favorite name
         m_nt = NetworkTableInstance.getDefault().getTable(networkTableName);
         m_initializeCommandLogEntry = m_nt.getStringTopic("Commands/initialize").getEntry("");
         m_interruptCommandLogEntry = m_nt.getStringTopic("Commands/interrupt").getEntry("");
